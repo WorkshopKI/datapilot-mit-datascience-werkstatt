@@ -1,0 +1,94 @@
+import { Link } from "react-router-dom";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ArrowRight, Wrench, Calendar, MessageSquare, Calculator, Lightbulb } from "lucide-react";
+
+const tools = [
+  {
+    id: "meeting",
+    title: "Meeting vorbereiten",
+    description: "Checklisten und Fragen für 5 wichtige Meeting-Typen im Data-Science-Projekt – von Kickoff bis Retrospektive.",
+    icon: Calendar,
+    href: "/im-projekt/meeting",
+    cta: "Meeting vorbereiten",
+    features: ["5 Meeting-Typen", "Vor- und Nachbereitung", "Typische Red Flags", "Kopieren & Teilen"],
+  },
+  {
+    id: "stakeholder",
+    title: "Stakeholder befragen",
+    description: "Fragen für Stakeholder-Gespräche nach Phase und Rolle – strukturiert und exportierbar.",
+    icon: MessageSquare,
+    href: "/im-projekt/stakeholder",
+    cta: "Fragen ansehen",
+    features: ["6 Phasen", "5 Rollen", "Kategorisiert", "Exportierbar"],
+  },
+  {
+    id: "roi",
+    title: "ROI berechnen",
+    description: "Berechne den Business Value deines Data-Science-Projekts mit konkreten Zahlen.",
+    icon: Calculator,
+    href: "/im-projekt/roi",
+    cta: "ROI berechnen",
+    features: ["4 Use Cases", "Vergleichstabelle", "Export als Slide", "Zahlen kopieren"],
+  },
+];
+
+export default function ImProjektIndex() {
+  return (
+    <div className="container mx-auto px-4 py-4 md:py-8 max-w-4xl">
+      {/* Header */}
+      <div className="mb-4 md:mb-8">
+        <div className="flex items-center gap-2 md:gap-3 mb-2">
+          <Wrench className="h-6 w-6 md:h-8 md:w-8 text-primary" />
+          <h1 className="text-2xl md:text-3xl font-bold">Im Projekt</h1>
+        </div>
+        <p className="text-lg text-muted-foreground">
+          Praktische Tools für deinen Data-Science-Projektalltag.
+        </p>
+      </div>
+
+      {/* Tool Cards */}
+      <div className="grid gap-4 md:gap-6 md:grid-cols-2 lg:grid-cols-3">
+        {tools.map((tool) => (
+          <Link key={tool.id} to={tool.href}>
+            <Card className="h-full hover:shadow-lg transition-all hover:border-primary/50 cursor-pointer group">
+              <CardHeader>
+                <div className="text-primary mb-1 md:mb-2">
+                  <tool.icon className="h-8 w-8 md:h-10 md:w-10" />
+                </div>
+                <CardTitle className="text-xl">{tool.title}</CardTitle>
+                <CardDescription className="text-base">
+                  {tool.description}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {/* Features */}
+                <ul className="text-sm text-muted-foreground space-y-1 mb-4">
+                  {tool.features.map((feature, index) => (
+                    <li key={index} className="flex items-center gap-2">
+                      <span className="text-primary">•</span>
+                      {feature}
+                    </li>
+                  ))}
+                </ul>
+                
+                {/* CTA */}
+                <span className="inline-flex items-center text-primary font-medium">
+                  {tool.cta}
+                  <ArrowRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-1" />
+                </span>
+              </CardContent>
+            </Card>
+          </Link>
+        ))}
+      </div>
+
+      {/* Info Note */}
+      <div className="mt-6 md:mt-8 p-3 md:p-4 bg-muted/50 rounded-lg text-sm text-muted-foreground flex items-start gap-2">
+        <Lightbulb className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+        <p>
+          Diese Tools sind Begleiter für den Workshop und darüber hinaus. Sie ersetzen nicht die Diskussion mit Stakeholdern, sondern bereiten dich optimal darauf vor.
+        </p>
+      </div>
+    </div>
+  );
+}
