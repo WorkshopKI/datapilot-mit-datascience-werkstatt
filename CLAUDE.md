@@ -89,7 +89,7 @@ src/
 │   ├── types.ts             ← Shared Interfaces (Vertrag mit UI)
 │   ├── workspace/           ← Storage, Export/Import, Hashing
 │   │   ├── WorkspaceStorage.ts   ← LocalStorage CRUD (implementiert)
-│   │   ├── WorkspaceExporter.ts  ← .mltutor Export/Import mit Validierung
+│   │   ├── WorkspaceExporter.ts  ← .datapilot Export/Import mit Validierung
 │   │   ├── hashUtils.ts          ← SHA-256 Hash (String + File)
 │   │   └── __tests__/            ← Unit Tests
 │   │       ├── WorkspaceStorage.test.ts
@@ -250,7 +250,7 @@ WorkspaceStorage.clear(): void
 
 // engine/workspace/WorkspaceExporter.ts (statische Klasse)
 WorkspaceExporter.exportProject(project, exportMode?): Promise<ExportData>
-WorkspaceExporter.exportToFile(project, exportMode?): Promise<void>  // Download .mltutor
+WorkspaceExporter.exportToFile(project, exportMode?): Promise<void>  // Download .datapilot
 WorkspaceExporter.importFromFile(file): Promise<WorkspaceProject>    // Validiert + importiert
 WorkspaceExporter.validateFile(file): Promise<ImportValidationResult>
 
@@ -364,14 +364,14 @@ class PyodideManager {
 **LocalStorage-basiertes Backend (implementiert):**
 
 - `WorkspaceStorage`: Statische Klasse mit CRUD für Projekte, Phasen-Status, Demo-Initialisierung.
-- `WorkspaceExporter`: Export als `.mltutor` (JSON) mit SHA-256 Integritäts-Hash und Validierung beim Import.
+- `WorkspaceExporter`: Export als `.datapilot` (JSON) mit SHA-256 Integritäts-Hash und Validierung beim Import.
 - Storage-Keys: `ds-werkstatt-onboarding-done`, `ds-werkstatt-mode`, `ds-werkstatt-projects`.
 - Optional `SupabaseBackend` (Feature 9): Nur wenn User Sync aktiviert hat.
 
 ### Daten-Privatsphäre
 
 - **Echte Daten (CSV/Excel)** werden NUR im Browser verarbeitet. Kein Upload an irgendeinen Server.
-- **Projektdateien (.mltutor)** speichern standardmäßig KEINE Rohdaten, nur ein Manifest (`exportMode: 'reference'`).
+- **Projektdateien (.datapilot)** speichern standardmäßig KEINE Rohdaten, nur ein Manifest (`exportMode: 'reference'`).
 - Verschlüsselung: AES-256-GCM über Web Crypto API, Passwort-basiert (optional, vorbereitet).
 
 ### Glossar-Integration
@@ -389,7 +389,7 @@ Jedes Feature baut auf dem vorherigen auf. Nicht vorspringen.
 **Ziel:** Projekte speichern, laden, exportieren, importieren.
 
 - [x] `WorkspaceStorage` implementieren (CRUD für Projekte via LocalStorage)
-- [x] `WorkspaceExporter`: Projekt als `.mltutor` (JSON) Datei exportieren
+- [x] `WorkspaceExporter`: Projekt als `.datapilot` (JSON) Datei exportieren
 - [x] Import mit Validierung (Version, Struktur, Pflichtfelder)
 - [x] `hashUtils.ts`: SHA-256 Hash über Web Crypto API (String + File)
 - [x] `FileManifest` Interface für CSV-Validierung beim Re-Import

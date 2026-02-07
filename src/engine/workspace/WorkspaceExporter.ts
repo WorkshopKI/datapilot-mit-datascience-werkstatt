@@ -1,5 +1,5 @@
 // Export/Import functionality for DS Werkstatt projects
-// Produces .mltutor files (JSON) with versioning, integrity hashing, and validation.
+// Produces .datapilot files (JSON) with versioning, integrity hashing, and validation.
 
 import { WorkspaceProject, ExportData, ExportMode } from '../types';
 import { generateHash, verifyHash } from './hashUtils';
@@ -117,7 +117,7 @@ export class WorkspaceExporter {
   }
 
   /**
-   * Export a project and trigger a .mltutor file download.
+   * Export a project and trigger a .datapilot file download.
    */
   static async exportToFile(
     project: WorkspaceProject,
@@ -135,7 +135,7 @@ export class WorkspaceExporter {
 
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${sanitizedName}.mltutor`;
+    a.download = `${sanitizedName}.datapilot`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -143,7 +143,7 @@ export class WorkspaceExporter {
   }
 
   /**
-   * Import a project from a .mltutor (or .json) file.
+   * Import a project from a .datapilot (or .json) file.
    * Validates structure, version, and integrity hash.
    * Returns the imported project with a fresh ID.
    *

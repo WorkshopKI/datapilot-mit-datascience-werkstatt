@@ -54,11 +54,11 @@ describe('WorkspaceExporter', () => {
   });
 
   describe('importFromFile', () => {
-    it('should import a valid .mltutor file', async () => {
+    it('should import a valid .datapilot file', async () => {
       const project = createTestProject();
       const exported = await WorkspaceExporter.exportProject(project);
       const json = JSON.stringify(exported);
-      const file = new File([json], 'test.mltutor', { type: 'application/json' });
+      const file = new File([json], 'test.datapilot', { type: 'application/json' });
 
       const imported = await WorkspaceExporter.importFromFile(file);
 
@@ -68,12 +68,12 @@ describe('WorkspaceExporter', () => {
     });
 
     it('should reject invalid JSON', async () => {
-      const file = new File(['not json {{{'], 'bad.mltutor');
+      const file = new File(['not json {{{'], 'bad.datapilot');
       await expect(WorkspaceExporter.importFromFile(file)).rejects.toThrow('kein gültiges JSON');
     });
 
     it('should reject missing project data', async () => {
-      const file = new File([JSON.stringify({ version: '1.0.0' })], 'bad.mltutor');
+      const file = new File([JSON.stringify({ version: '1.0.0' })], 'bad.datapilot');
       await expect(WorkspaceExporter.importFromFile(file)).rejects.toThrow('Import fehlgeschlagen');
     });
 
@@ -85,7 +85,7 @@ describe('WorkspaceExporter', () => {
         exportMode: 'reference',
         encrypted: false,
       };
-      const file = new File([JSON.stringify(data)], 'future.mltutor');
+      const file = new File([JSON.stringify(data)], 'future.datapilot');
       await expect(WorkspaceExporter.importFromFile(file)).rejects.toThrow('wird nicht unterstützt');
     });
   });
@@ -94,7 +94,7 @@ describe('WorkspaceExporter', () => {
     it('should validate a correct file', async () => {
       const project = createTestProject();
       const exported = await WorkspaceExporter.exportProject(project);
-      const file = new File([JSON.stringify(exported)], 'valid.mltutor');
+      const file = new File([JSON.stringify(exported)], 'valid.datapilot');
 
       const result = await WorkspaceExporter.validateFile(file);
       expect(result.valid).toBe(true);
@@ -114,7 +114,7 @@ describe('WorkspaceExporter', () => {
         exportedAt: new Date().toISOString(),
         project: { id: 'x', name: 'X' },
       };
-      const file = new File([JSON.stringify(incomplete)], 'incomplete.mltutor');
+      const file = new File([JSON.stringify(incomplete)], 'incomplete.datapilot');
       const result = await WorkspaceExporter.validateFile(file);
       expect(result.valid).toBe(false);
       expect(result.errors.some(e => e.includes('Pflichtfeld'))).toBe(true);
