@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { BookOpen, ClipboardList, Wrench, Search, ArrowRight, Lightbulb, Bot, GraduationCap, Handshake } from "lucide-react";
+import { BookOpen, ClipboardList, Wrench, Search, ArrowRight, Lightbulb, Bot, GraduationCap, Handshake, FlaskConical } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const welcomeContent = {
@@ -11,6 +11,19 @@ const welcomeContent = {
 };
 
 const groups = [
+  {
+    id: "werkstatt",
+    title: "DS Werkstatt",
+    icon: FlaskConical,
+    description: "Interaktiv durch den CRISP-DM Zyklus – mit Demo-Daten lernen.",
+    href: "/werkstatt",
+    featured: true,
+    tools: [
+      { label: "CRISP-DM Phasen durchlaufen", featured: true },
+      { label: "Features definieren & analysieren" },
+      { label: "Projekt exportieren & teilen" },
+    ],
+  },
   {
     id: "lernen",
     title: "Lernen",
@@ -30,9 +43,9 @@ const groups = [
     icon: Bot,
     description: "Interaktive Prompts für ChatGPT/Claude – zum Lernen und Analysieren.",
     href: "/ki-assistenten",
-    featured: true,
+    featured: false,
     tools: [
-      { label: "KI Tutor", duration: "~30-45 Min", featured: true, hint: "Prompt" },
+      { label: "KI Tutor", duration: "~30-45 Min", hint: "Prompt" },
       { label: "KI Copilot", hint: "Prompt" },
     ],
   },

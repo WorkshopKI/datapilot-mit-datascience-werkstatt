@@ -1,12 +1,12 @@
-import { Home, BookOpen, ClipboardList, Wrench, Search, Moon, Sun } from "lucide-react";
+import { Home, BookOpen, ClipboardList, Wrench, Search, Moon, Sun, FlaskConical } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 
 const navItems = [
   { icon: Home, label: "Start", href: "/" },
+  { icon: FlaskConical, label: "Werkstatt", href: "/werkstatt" },
   { icon: BookOpen, label: "Lernen", href: "/lernen" },
-  { icon: ClipboardList, label: "Planen", href: "/planen" },
   { icon: Wrench, label: "Projekt", href: "/im-projekt" },
   { icon: Search, label: "Suche", href: "/nachschlagen" },
 ];
