@@ -17,6 +17,7 @@ import {
   Search,
   Handshake,
   Bot,
+  FlaskConical,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import {
@@ -43,6 +44,14 @@ import { useScrollSpy } from "@/hooks/useScrollSpy";
 
 // Navigation groups data
 const navigationGroups = [
+  {
+    id: "werkstatt",
+    title: "DS Werkstatt",
+    icon: FlaskConical,
+    href: "/werkstatt",
+    items: [],
+    featured: true,
+  },
   {
     id: "lernen",
     title: "Lernen",

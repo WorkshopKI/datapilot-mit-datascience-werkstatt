@@ -47,6 +47,11 @@ import BegriffeUebersetzungen from "./pages/nachschlagen/BegriffeUebersetzungen"
 import MetrikenReferenz from "./pages/nachschlagen/MetrikenReferenz";
 import ProblemDiagnose from "./pages/nachschlagen/ProblemDiagnose";
 
+// DS Werkstatt
+import WerkstattPage from "./pages/werkstatt/WerkstattPage";
+import ProjectPage from "./pages/werkstatt/ProjectPage";
+import NewProjectPage from "./pages/werkstatt/NewProjectPage";
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -97,6 +102,11 @@ const App = () => (
             <Route path="/nachschlagen/begriffe" element={<BegriffeUebersetzungen />} />
             <Route path="/nachschlagen/metriken" element={<MetrikenReferenz />} />
             <Route path="/nachschlagen/diagnose" element={<ProblemDiagnose />} />
+
+            {/* DS Werkstatt */}
+            <Route path="/werkstatt" element={<WerkstattPage />} />
+            <Route path="/werkstatt/neu" element={<NewProjectPage />} />
+            <Route path="/werkstatt/:projectId" element={<ProjectPage />} />
             
             {/* Redirects für Nachschlagen */}
             <Route path="/nachschlagen/glossar" element={<Navigate to="/nachschlagen/begriffe?modus=schnell" replace />} />
