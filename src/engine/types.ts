@@ -54,12 +54,38 @@ export interface WorkspaceState {
   activeProjectId?: string;
 }
 
+/** Mode for exporting project data */
+export type ExportMode = 'reference' | 'embedded' | 'synthetic-twin';
+
 export interface ExportData {
   version: string;
   exportedAt: string;
   project: WorkspaceProject;
   hash?: string;
+  /** How data is included in the export */
+  exportMode: ExportMode;
+  /** Whether the export file is encrypted */
+  encrypted: boolean;
+  /** File manifest for re-import validation */
+  fileManifest?: FileManifest;
 }
+
+/** Manifest describing the original data source for re-import validation */
+export interface FileManifest {
+  fileName: string;
+  fileSize: number;
+  fileHash: string;
+  rowCount: number;
+  columnCount: number;
+  columns: string[];
+}
+
+// --- Interfaces below will be added with later features ---
+// TODO(pyodide): DataSourceConfig – Feature 2
+// TODO(pyodide): PipelineStep – Feature 5
+// TODO(pyodide): TrainedModel – Feature 6
+// TODO(pyodide): ModelMetrics – Feature 6
+// TODO(data): SyntheticTwinConfig – Feature 8
 
 // Default CRISP-DM phases configuration
 export const DEFAULT_CRISP_DM_PHASES: CrispDmPhase[] = [

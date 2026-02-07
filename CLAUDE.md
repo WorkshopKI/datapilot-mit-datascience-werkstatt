@@ -2,6 +2,7 @@
 
 > Diese Datei wird automatisch von Claude Code gelesen. Sie enthält alle Konventionen,
 > Architektur-Entscheidungen und den Feature-Plan für das Projekt.
+> **Zuletzt aktualisiert:** 2026-02-07 – an tatsächliche Codebasis angepasst.
 
 ---
 
@@ -30,6 +31,7 @@ UI-Basis:       shadcn/ui
 Icons:          Lucide React
 State:          React Hooks + LocalStorage (kein Redux, kein Zustand)
 ML-Engine:      Pyodide (CPython via WebAssembly) mit sklearn, pandas, numpy
+Testing:        Vitest + jsdom + @testing-library
 Auth (optional): Supabase Auth (Magic Link, kein Google/Social)
 DB (optional):  Supabase Postgres (nur wenn User Sync aktiviert)
 ```
@@ -41,21 +43,21 @@ DB (optional):  Supabase Postgres (nur wenn User Sync aktiviert)
 Die DataPilot App hat bereits diese Bereiche – NICHT verändern:
 
 ```
-🧭 DataPilot
-├── 📚 Lernen              ← CRISP-DM Theorie, Lektionen
-├── 🎮 Üben                ← Challenge Cards, Quiz
-├── 📖 Nachschlagen        ← Begriffe & Übersetzungen (100+ Glossar-Einträge)
-│                             Enthält u.a.: Overfitting, Feature Engineering,
-│                             Confusion Matrix, CRISP-DM, Missing Values,
-│                             One-Hot Encoding, Accuracy, Precision, Recall, ...
-└── ⚙️ Einstellungen
+DataPilot
+├── Lernen              ← CRISP-DM Theorie, Lektionen
+├── Üben                ← Challenge Cards, Quiz
+├── KI-Assistenten      ← Tutor + Copilot Startrampen
+├── Planen              ← Projekt planen, Checkliste
+├── Im Projekt          ← Meeting, Stakeholder, ROI
+├── Nachschlagen        ← Begriffe & Übersetzungen (100+ Glossar-Einträge)
+└── DS Werkstatt        ← CRISP-DM Zyklus im Browser (NEU)
 ```
 
 Der Glossar ist besonders wertvoll: Er enthält fast alle Begriffe die in der DS Werkstatt vorkommen. Die `GlossaryLink`-Komponente verknüpft Fachbegriffe in der Werkstatt direkt mit den Glossar-Einträgen.
 
 ---
 
-## Ordnerstruktur & Zuständigkeiten
+## Ordnerstruktur & Zuständigkeiten (tatsächlich)
 
 ```
 src/
@@ -67,31 +69,58 @@ src/
 │   └── werkstatt/           ← DS Werkstatt UI-Shells
 │       ├── OnboardingScreen.tsx
 │       ├── ProjectList.tsx
+│       ├── ProjectCard.tsx
 │       ├── NewProjectWizard.tsx
 │       ├── DataImportZone.tsx
 │       ├── CrispDmStepper.tsx
 │       ├── CrispDmPhaseWrapper.tsx
 │       ├── GlossaryLink.tsx     ← Wiederverwendbare Glossar-Link-Komponente
-│       ├── phases/              ← UI für CRISP-DM Phasen
 │       ├── ExportModal.tsx
-│       └── WorkspaceStatusBar.tsx
+│       ├── WorkspaceStatusBar.tsx
+│       └── phases/              ← UI für CRISP-DM Phasen
+│           ├── BusinessUnderstanding.tsx
+│           ├── DataUnderstanding.tsx
+│           ├── DataPreparation.tsx
+│           ├── Modeling.tsx
+│           ├── Evaluation.tsx
+│           └── Deployment.tsx
 │
 ├── engine/                  ← ✅ CLAUDE CODE DOMÄNE
 │   ├── types.ts             ← Shared Interfaces (Vertrag mit UI)
-│   ├── pyodide/             ← Pyodide WebWorker + sklearn Pipeline
-│   ├── workspace/           ← Storage, Export/Import, Hashing, Crypto
-│   ├── data/                ← Datengeneratoren (synthetisch + Zwilling)
-│   └── tutor/               ← Claude API Integration für Tutor-Tipps
+│   ├── workspace/           ← Storage, Export/Import, Hashing
+│   │   ├── WorkspaceStorage.ts   ← LocalStorage CRUD (implementiert)
+│   │   ├── WorkspaceExporter.ts  ← .mltutor Export/Import mit Validierung
+│   │   ├── hashUtils.ts          ← SHA-256 Hash (String + File)
+│   │   └── __tests__/            ← Unit Tests
+│   │       ├── WorkspaceStorage.test.ts
+│   │       ├── WorkspaceExporter.test.ts
+│   │       └── hashUtils.test.ts
+│   ├── data/                ← Datengeneratoren
+│   │   └── DataGenerator.ts      ← Mock-Daten (Phase 1), wird zu Pyodide
+│   ├── pyodide/             ← Pyodide WebWorker
+│   │   └── PyodideWorker.ts      ← Mock (Phase 1), wird zu echtem Pyodide
+│   └── tutor/               ← Lern-Guidance pro CRISP-DM Phase
+│       └── TutorService.ts       ← Phasen-Hinweise + Glossar-Term-Referenzen
 │
 ├── hooks/                   ← ⚠️ VORSICHTIG (geteilt)
-│   ├── useWorkspace.ts      ← Claude Code implementiert Logik
-│   ├── useProject.ts        ← Claude Code implementiert Logik
-│   └── ...                  ← Bestehende Hooks nicht anfassen
+│   ├── useWorkspace.ts      ← Workspace CRUD + Export/Import Hook
+│   ├── useProject.ts        ← Einzelprojekt + Phasen-Navigation + Tutor
+│   ├── useCanvasState.ts    ← Bestehend, nicht anfassen
+│   ├── useChallengeProgress.ts ← Bestehend, nicht anfassen
+│   ├── useProgress.ts       ← Bestehend, nicht anfassen
+│   ├── useScrollSpy.ts      ← Bestehend, nicht anfassen
+│   ├── use-mobile.tsx       ← Bestehend, nicht anfassen
+│   └── use-toast.ts         ← Bestehend, nicht anfassen
 │
 ├── pages/
-│   ├── WerkstattPage.tsx
-│   ├── ProjectPage.tsx
+│   ├── werkstatt/
+│   │   ├── WerkstattPage.tsx    ← Hauptseite (Onboarding oder Projektliste)
+│   │   ├── ProjectPage.tsx      ← Einzelprojekt mit CRISP-DM Stepper
+│   │   └── NewProjectPage.tsx   ← Neues Projekt erstellen
 │   └── ...                  ← Bestehende Seiten nicht anfassen
+│
+├── test/
+│   └── setup.ts             ← Vitest Setup (jsdom, matchMedia Mock)
 │
 └── types/
     └── index.ts             ← Re-Export aus engine/types.ts
@@ -106,6 +135,133 @@ src/
 5. **Neue Dateien** im `engine/`-Ordner können jederzeit erstellt werden.
 6. **Neue npm-Pakete** dürfen installiert werden. Erwähne kurz was und warum.
 7. **Bestehende DataPilot-Bereiche** (Lernen, Üben, Nachschlagen) NIEMALS anfassen.
+
+---
+
+## Tatsächliche Interfaces (engine/types.ts)
+
+### Core Types
+
+```typescript
+type CrispDmPhaseId =
+  | 'business-understanding'
+  | 'data-understanding'
+  | 'data-preparation'
+  | 'modeling'
+  | 'evaluation'
+  | 'deployment';
+
+interface CrispDmPhase {
+  id: CrispDmPhaseId;
+  name: string;
+  shortName: string;
+  description: string;
+  status: 'pending' | 'in-progress' | 'completed';
+  completedAt?: string;
+}
+
+type ProjectType = 'klassifikation' | 'regression' | 'clustering';
+
+interface Feature {
+  id: string;
+  name: string;
+  type: 'numerisch' | 'kategorial' | 'text' | 'datum';
+  description: string;
+  isTarget?: boolean;
+}
+
+interface WorkspaceProject {
+  id: string;
+  name: string;
+  description: string;
+  type: ProjectType;
+  createdAt: string;
+  updatedAt: string;
+  currentPhase: CrispDmPhaseId;
+  phases: CrispDmPhase[];
+  features: Feature[];
+  businessGoal?: string;
+  successCriteria?: string;
+  dataSource?: string;
+  rowCount?: number;
+  hasDemoData?: boolean;
+}
+
+interface WorkspaceState {
+  onboardingDone: boolean;
+  mode: 'local' | 'sync';
+  projects: WorkspaceProject[];
+  activeProjectId?: string;
+}
+
+type ExportMode = 'reference' | 'embedded' | 'synthetic-twin';
+
+interface ExportData {
+  version: string;
+  exportedAt: string;
+  project: WorkspaceProject;
+  hash?: string;
+  exportMode: ExportMode;
+  encrypted: boolean;
+  fileManifest?: FileManifest;
+}
+
+interface FileManifest {
+  fileName: string;
+  fileSize: number;
+  fileHash: string;
+  rowCount: number;
+  columnCount: number;
+  columns: string[];
+}
+```
+
+### Noch fehlende Interfaces (werden bei späteren Features ergänzt)
+
+- `DataSourceConfig` – wird bei Feature 2 (Pyodide WebWorker) ergänzt
+- `PipelineStep` – wird bei Feature 5 (Data Preparation) ergänzt
+- `TrainedModel` – wird bei Feature 6 (Modeling) ergänzt
+- `ModelMetrics` – wird bei Feature 6 (Evaluation) ergänzt
+- `SyntheticTwinConfig` – wird bei Feature 8 (Synthetischer Zwilling) ergänzt
+
+### Aktuell implementierte Engine-Module
+
+```typescript
+// engine/workspace/hashUtils.ts
+generateHash(data: string): Promise<string>        // SHA-256 Hex-String
+verifyHash(data: string, expected: string): Promise<boolean>
+computeFileHash(file: File): Promise<string>        // SHA-256 über File API
+
+// engine/workspace/WorkspaceStorage.ts (statische Klasse)
+WorkspaceStorage.getProjects(): WorkspaceProject[]
+WorkspaceStorage.createProject(data): WorkspaceProject
+WorkspaceStorage.updateProject(id, updates): WorkspaceProject | undefined
+WorkspaceStorage.deleteProject(id): boolean
+WorkspaceStorage.updatePhaseStatus(projectId, phaseId, status): void
+WorkspaceStorage.initializeWithDemo(): void
+WorkspaceStorage.getState(): WorkspaceState
+WorkspaceStorage.clear(): void
+
+// engine/workspace/WorkspaceExporter.ts (statische Klasse)
+WorkspaceExporter.exportProject(project, exportMode?): Promise<ExportData>
+WorkspaceExporter.exportToFile(project, exportMode?): Promise<void>  // Download .mltutor
+WorkspaceExporter.importFromFile(file): Promise<WorkspaceProject>    // Validiert + importiert
+WorkspaceExporter.validateFile(file): Promise<ImportValidationResult>
+
+// engine/data/DataGenerator.ts (Mock für Phase 1)
+DataGenerator.generate(config): GeneratedDataset
+DataGenerator.getPreviewData(projectType): GeneratedDataset
+
+// engine/pyodide/PyodideWorker.ts (Mock für Phase 1)
+PyodideWorker.initialize(): Promise<void>
+PyodideWorker.execute(code): Promise<ExecutionResult>
+PyodideWorker.loadPackage(name): Promise<boolean>
+
+// engine/tutor/TutorService.ts
+TutorService.getPhaseGuidance(phaseId): PhaseGuidance
+TutorService.getContextualHints(project): TutorHint[]
+TutorService.getNextSteps(phaseId): string[]
+```
 
 ---
 
@@ -148,39 +304,51 @@ Info: bg-blue-50 text-blue-700 border-blue-200
 
 ## Architektur-Entscheidungen
 
-### Pyodide WebWorker
+### Pyodide WebWorker (aktuell Mock)
 
 - Pyodide läuft in einem **Web Worker** (nicht im Main Thread).
-- Kommunikation über `postMessage` mit strukturierten Nachrichten.
+- Aktuell Mock-Implementierung (Singleton-Pattern) in `engine/pyodide/PyodideWorker.ts`.
+- Kommunikation über `postMessage` mit strukturierten Nachrichten (wird bei Feature 2 implementiert).
 - Packages werden lazy geladen: Pyodide-Core zuerst, dann sklearn/pandas/numpy on demand.
 
 ```typescript
-// engine/pyodide/PyodideWorker.ts
-interface PyodideAPI {
+// Aktuelles Interface (engine/pyodide/PyodideWorker.ts)
+interface PyodideStatus {
+  loaded: boolean;
+  loading: boolean;
+  error?: string;
+}
+
+interface ExecutionResult {
+  success: boolean;
+  output?: unknown;
+  error?: string;
+  logs?: string[];
+}
+
+class PyodideWorker {
   initialize(): Promise<void>;
-  isReady(): boolean;
-  runPython(code: string): Promise<any>;
-  loadPackages(packages: string[]): Promise<void>;
-  generateData(params: DataGenerationParams): Promise<DataFrame>;
-  trainModel(algorithm: AlgorithmType, params: Record<string, any>): Promise<TrainedModel>;
-  evaluate(modelId: string): Promise<ModelMetrics>;
-  predict(modelId: string, input: Record<string, any>): Promise<any>;
+  getStatus(): PyodideStatus;
+  execute(code: string): Promise<ExecutionResult>;
+  loadPackage(packageName: string): Promise<boolean>;
+  terminate(): void;
 }
 ```
 
 ### Workspace & Persistenz
 
-**Zwei Storage-Backends mit identischem Interface:**
+**LocalStorage-basiertes Backend (implementiert):**
 
-- `LocalStorageBackend`: Immer verfügbar, primärer Speicher.
-- `SupabaseBackend`: Optional, nur wenn User Sync aktiviert hat und Supabase erreichbar ist.
-- Auswahl über Strategy Pattern basierend auf `localStorage.getItem('ds-werkstatt-mode')`.
+- `WorkspaceStorage`: Statische Klasse mit CRUD für Projekte, Phasen-Status, Demo-Initialisierung.
+- `WorkspaceExporter`: Export als `.mltutor` (JSON) mit SHA-256 Integritäts-Hash und Validierung beim Import.
+- Storage-Keys: `ds-werkstatt-onboarding-done`, `ds-werkstatt-mode`, `ds-werkstatt-projects`.
+- Optional `SupabaseBackend` (Feature 9): Nur wenn User Sync aktiviert hat.
 
 ### Daten-Privatsphäre
 
 - **Echte Daten (CSV/Excel)** werden NUR im Browser verarbeitet. Kein Upload an irgendeinen Server.
-- **Projektdateien (.mltutor)** speichern standardmäßig KEINE Rohdaten, nur ein Manifest.
-- Verschlüsselung: AES-256-GCM über Web Crypto API, Passwort-basiert.
+- **Projektdateien (.mltutor)** speichern standardmäßig KEINE Rohdaten, nur ein Manifest (`exportMode: 'reference'`).
+- Verschlüsselung: AES-256-GCM über Web Crypto API, Passwort-basiert (optional, vorbereitet).
 
 ### Glossar-Integration
 
@@ -192,17 +360,19 @@ Die `GlossaryLink`-Komponente verknüpft Fachbegriffe in der DS Werkstatt mit de
 
 Jedes Feature baut auf dem vorherigen auf. Nicht vorspringen.
 
-### Feature 1: Workspace Manager
+### Feature 1: Workspace Manager ✅ IMPLEMENTIERT
 **Ordner:** `engine/workspace/`
-**Ziel:** Projekte speichern, laden, exportieren, importieren – echt, nicht mehr Mock.
+**Ziel:** Projekte speichern, laden, exportieren, importieren.
 
-- [ ] `LocalStorageBackend` implementieren (CRUD für Projekte)
-- [ ] `WorkspaceExporter`: Projekt als `.mltutor` (JSON) Datei exportieren
-- [ ] `WorkspaceImporter`: `.mltutor` Datei einlesen und validieren
-- [ ] `hashUtils.ts`: SHA-256 Hash über File API + Web Crypto API
-- [ ] `DataValidator`: Beim Re-Import CSV gegen gespeichertes Manifest prüfen
+- [x] `WorkspaceStorage` implementieren (CRUD für Projekte via LocalStorage)
+- [x] `WorkspaceExporter`: Projekt als `.mltutor` (JSON) Datei exportieren
+- [x] Import mit Validierung (Version, Struktur, Pflichtfelder)
+- [x] `hashUtils.ts`: SHA-256 Hash über Web Crypto API (String + File)
+- [x] `FileManifest` Interface für CSV-Validierung beim Re-Import
+- [x] Hook `useWorkspace.ts` mit WorkspaceStorage verbunden
+- [x] Unit Tests (WorkspaceStorage, WorkspaceExporter, hashUtils)
 - [ ] Optional: AES-256-GCM Verschlüsselung für Export mit Passwort
-- [ ] Hook `useWorkspace.ts` mit echtem LocalStorageBackend verbinden
+- [ ] `DataValidator`: Beim Re-Import CSV gegen gespeichertes Manifest prüfen
 
 **Testen:** Projekt erstellen → exportieren → App-Daten löschen → importieren → alles da.
 
@@ -210,7 +380,7 @@ Jedes Feature baut auf dem vorherigen auf. Nicht vorspringen.
 **Ordner:** `engine/pyodide/`
 **Ziel:** Python/sklearn im Browser lauffähig machen.
 
-- [ ] WebWorker Setup
+- [ ] WebWorker Setup (echtes Pyodide statt Mock)
 - [ ] Pyodide laden mit Fortschrittsanzeige
 - [ ] sklearn, pandas, numpy als Micropip-Packages laden
 - [ ] Promise-basiertes API für Main Thread
@@ -313,6 +483,12 @@ Jedes Feature baut auf dem vorherigen auf. Nicht vorspringen.
 ### Kommentare
 - JSDoc für public Interfaces und Funktionen
 - TODO mit Feature-Name: `// TODO(pyodide): ...`
+
+### Tests
+- Framework: Vitest mit jsdom
+- Testdateien: `__tests__/*.test.ts` neben den Source-Files
+- `npm run test` (einmalig) oder `npm run test:watch` (watch mode)
+- jsdom hat kein `File.text()` – bei Bedarf Polyfill in Tests verwenden
 
 ---
 
