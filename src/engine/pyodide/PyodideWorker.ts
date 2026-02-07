@@ -1,67 +1,20 @@
-// Pyodide Worker Interface (Mock Implementation for Phase 1)
-// This will be replaced with actual Pyodide integration in Phase 2
+/**
+ * PyodideWorker – Re-exports from PyodideManager for backward compatibility.
+ *
+ * The original mock implementation has been replaced with a real Pyodide
+ * Web Worker in Feature 2. This file re-exports the new API under the
+ * old names so any existing imports continue to work.
+ */
 
-export interface PyodideStatus {
-  loaded: boolean;
-  loading: boolean;
-  error?: string;
-}
+export { PyodideManager as PyodideWorker } from './PyodideManager';
+export type { PyodideState as PyodideStatus } from './PyodideManager';
+export type { PyodideExecutionResult as ExecutionResult } from './PyodideManager';
 
-export interface ExecutionResult {
-  success: boolean;
-  output?: unknown;
-  error?: string;
-  logs?: string[];
-}
+import { PyodideManager } from './PyodideManager';
 
-// Mock implementation - will be replaced with actual Pyodide
-export class PyodideWorker {
-  private status: PyodideStatus = { loaded: false, loading: false };
-
-  async initialize(): Promise<void> {
-    this.status.loading = true;
-    // Mock: Simulate loading time
-    await new Promise(resolve => setTimeout(resolve, 100));
-    this.status.loading = false;
-    this.status.loaded = true;
-    console.log('[PyodideWorker] Mock initialized - Phase 2 will add real Pyodide');
-  }
-
-  getStatus(): PyodideStatus {
-    return { ...this.status };
-  }
-
-  async execute(code: string): Promise<ExecutionResult> {
-    if (!this.status.loaded) {
-      return { success: false, error: 'Pyodide not loaded' };
-    }
-
-    // Mock execution
-    console.log('[PyodideWorker] Mock execute:', code.substring(0, 100) + '...');
-    return {
-      success: true,
-      output: { message: 'Mock execution result' },
-      logs: ['[Mock] Code executed successfully'],
-    };
-  }
-
-  async loadPackage(packageName: string): Promise<boolean> {
-    console.log('[PyodideWorker] Mock loadPackage:', packageName);
-    return true;
-  }
-
-  terminate(): void {
-    this.status = { loaded: false, loading: false };
-    console.log('[PyodideWorker] Mock terminated');
-  }
-}
-
-// Singleton instance
-let workerInstance: PyodideWorker | null = null;
-
-export function getPyodideWorker(): PyodideWorker {
-  if (!workerInstance) {
-    workerInstance = new PyodideWorker();
-  }
-  return workerInstance;
+/**
+ * @deprecated Use `PyodideManager.getInstance()` instead.
+ */
+export function getPyodideWorker(): PyodideManager {
+  return PyodideManager.getInstance();
 }

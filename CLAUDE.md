@@ -97,13 +97,19 @@ src/
 │   │       └── hashUtils.test.ts
 │   ├── data/                ← Datengeneratoren
 │   │   └── DataGenerator.ts      ← Mock-Daten (Phase 1), wird zu Pyodide
-│   ├── pyodide/             ← Pyodide WebWorker
-│   │   └── PyodideWorker.ts      ← Mock (Phase 1), wird zu echtem Pyodide
+│   ├── pyodide/             ← Pyodide WebWorker (implementiert)
+│   │   ├── messageTypes.ts       ← Typisiertes Message-Protokoll
+│   │   ├── pyodide.worker.ts     ← Worker-Script (lädt Pyodide von CDN)
+│   │   ├── PyodideManager.ts     ← Main-Thread Singleton (Promise-API)
+│   │   ├── PyodideWorker.ts      ← Re-Exports für Backward-Compat
+│   │   └── __tests__/
+│   │       └── PyodideManager.test.ts
 │   └── tutor/               ← Lern-Guidance pro CRISP-DM Phase
 │       └── TutorService.ts       ← Phasen-Hinweise + Glossar-Term-Referenzen
 │
 ├── hooks/                   ← ⚠️ VORSICHTIG (geteilt)
 │   ├── useWorkspace.ts      ← Workspace CRUD + Export/Import Hook
+│   ├── usePyodide.ts        ← Pyodide Status, Progress, runPython Hook
 │   ├── useProject.ts        ← Einzelprojekt + Phasen-Navigation + Tutor
 │   ├── useCanvasState.ts    ← Bestehend, nicht anfassen
 │   ├── useChallengeProgress.ts ← Bestehend, nicht anfassen
@@ -252,10 +258,19 @@ WorkspaceExporter.validateFile(file): Promise<ImportValidationResult>
 DataGenerator.generate(config): GeneratedDataset
 DataGenerator.getPreviewData(projectType): GeneratedDataset
 
-// engine/pyodide/PyodideWorker.ts (Mock für Phase 1)
-PyodideWorker.initialize(): Promise<void>
-PyodideWorker.execute(code): Promise<ExecutionResult>
-PyodideWorker.loadPackage(name): Promise<boolean>
+// engine/pyodide/PyodideManager.ts (Singleton, echtes Pyodide via WebWorker)
+PyodideManager.getInstance(): PyodideManager
+PyodideManager.resetInstance(): void
+manager.initialize(cdnUrl?, packages?): Promise<void>
+manager.runPython(code): Promise<PyodideExecutionResult>
+manager.loadPackages(packages): Promise<void>
+manager.healthCheck(): Promise<boolean>
+manager.terminate(): void
+manager.onProgress(listener): () => void  // Returns cleanup fn
+manager.getState(): PyodideState
+
+// engine/pyodide/PyodideWorker.ts (Re-Exports für Backward-Compat)
+// PyodideWorker = PyodideManager, getPyodideWorker() = getInstance()
 
 // engine/tutor/TutorService.ts
 TutorService.getPhaseGuidance(phaseId): PhaseGuidance
@@ -304,34 +319,43 @@ Info: bg-blue-50 text-blue-700 border-blue-200
 
 ## Architektur-Entscheidungen
 
-### Pyodide WebWorker (aktuell Mock)
+### Pyodide WebWorker (implementiert)
 
 - Pyodide läuft in einem **Web Worker** (nicht im Main Thread).
-- Aktuell Mock-Implementierung (Singleton-Pattern) in `engine/pyodide/PyodideWorker.ts`.
-- Kommunikation über `postMessage` mit strukturierten Nachrichten (wird bei Feature 2 implementiert).
-- Packages werden lazy geladen: Pyodide-Core zuerst, dann sklearn/pandas/numpy on demand.
+- `PyodideManager` (Singleton) im Main Thread kommuniziert über typisiertes `postMessage`-Protokoll mit `pyodide.worker.ts`.
+- Packages werden lazy geladen: Pyodide-Core zuerst, dann numpy/pandas/scikit-learn.
+- CDN: `https://cdn.jsdelivr.net/pyodide/v0.27.4/full/`
+- Hook `usePyodide(autoInit?)` für React-Integration (lazy, kein Download beim App-Start).
 
 ```typescript
-// Aktuelles Interface (engine/pyodide/PyodideWorker.ts)
-interface PyodideStatus {
-  loaded: boolean;
-  loading: boolean;
+// engine/pyodide/PyodideManager.ts (Singleton)
+interface PyodideState {
+  stage: 'downloading' | 'initializing' | 'loading-packages' | 'ready' | 'error';
+  percent: number;
+  message: string;
+  isLoading: boolean;
+  isReady: boolean;
   error?: string;
 }
 
-interface ExecutionResult {
+interface PyodideExecutionResult {
   success: boolean;
-  output?: unknown;
+  result?: unknown;
   error?: string;
-  logs?: string[];
+  stdout: string[];
+  stderr: string[];
 }
 
-class PyodideWorker {
-  initialize(): Promise<void>;
-  getStatus(): PyodideStatus;
-  execute(code: string): Promise<ExecutionResult>;
-  loadPackage(packageName: string): Promise<boolean>;
+class PyodideManager {
+  static getInstance(): PyodideManager;
+  static resetInstance(): void;
+  initialize(cdnUrl?, packages?): Promise<void>;
+  runPython(code: string): Promise<PyodideExecutionResult>;
+  loadPackages(packages: string[]): Promise<void>;
+  healthCheck(): Promise<boolean>;
   terminate(): void;
+  onProgress(listener): () => void;
+  getState(): PyodideState;
 }
 ```
 
@@ -376,18 +400,19 @@ Jedes Feature baut auf dem vorherigen auf. Nicht vorspringen.
 
 **Testen:** Projekt erstellen → exportieren → App-Daten löschen → importieren → alles da.
 
-### Feature 2: Pyodide WebWorker
+### Feature 2: Pyodide WebWorker ✅ IMPLEMENTIERT
 **Ordner:** `engine/pyodide/`
 **Ziel:** Python/sklearn im Browser lauffähig machen.
 
-- [ ] WebWorker Setup (echtes Pyodide statt Mock)
-- [ ] Pyodide laden mit Fortschrittsanzeige
-- [ ] sklearn, pandas, numpy als Micropip-Packages laden
-- [ ] Promise-basiertes API für Main Thread
-- [ ] Wrapper-Hook `usePyodide.ts`
-- [ ] Ladebildschirm: Spinner + „ML-Engine wird geladen..." + Fortschritts-%
-- [ ] Fehlerbehandlung: Was wenn Pyodide nicht lädt?
-- [ ] Smoke Test: `from sklearn.linear_model import LinearRegression`
+- [x] WebWorker Setup (echtes Pyodide statt Mock)
+- [x] Pyodide laden mit Fortschrittsanzeige
+- [x] sklearn, pandas, numpy als Pyodide built-in Packages laden
+- [x] Promise-basiertes API für Main Thread (PyodideManager)
+- [x] Wrapper-Hook `usePyodide.ts`
+- [x] Fortschritts-Callbacks (stage, percent, message) für Lade-UI
+- [x] Fehlerbehandlung: CDN-Fehler, Timeouts, Worker-Crash
+- [ ] Smoke Test im Browser: `from sklearn.linear_model import LinearRegression`
+- [ ] Ladebildschirm UI (Lovable-Domäne)
 
 **Hinweis:** Pyodide ist ~15-20 MB. Caching via Service Worker.
 
