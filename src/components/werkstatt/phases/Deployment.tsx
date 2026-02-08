@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Rocket, Loader2, Info, AlertCircle, Brain,
   Play, Download, FileCode, FileText, Code,
-  CheckCircle2, ClipboardList, ChevronDown, ChevronUp,
+  CheckCircle2, ClipboardList, ChevronDown, ChevronUp, BookOpen,
 } from 'lucide-react';
 import { GlossaryLink } from '../GlossaryLink';
 import { ModelDeployer } from '@/engine/deployment/ModelDeployer';
@@ -53,7 +53,7 @@ export function Deployment({ project, onUpdateProject }: DeploymentProps) {
   const isClustering = project.type === 'clustering';
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {/* Model Summary */}
       <ModelSummaryCard model={selectedModel} projectType={project.type} />
 
@@ -116,6 +116,15 @@ export function Deployment({ project, onUpdateProject }: DeploymentProps) {
       </div>
 
       <GlossaryTermsCard />
+
+      {/* Lernbereich-Link (Pattern 12) */}
+      <a
+        href="/lernen/grundlagen#crisp-dm"
+        className="text-sm text-primary hover:underline flex items-center gap-1"
+      >
+        <BookOpen className="h-3.5 w-3.5" />
+        Mehr zu dieser Phase im Lernbereich →
+      </a>
     </div>
   );
 }
@@ -229,7 +238,7 @@ function PredictionPanel({ project, model, isClustering }: {
   const allFilled = featureColumns.every(col => inputValues[col]?.trim() !== '');
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
@@ -366,7 +375,7 @@ function CodeExportPanel({ project, model }: {
   }, [project, model]);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {/* Python Script Card */}
       <Card>
         <CardHeader>
@@ -396,7 +405,7 @@ function CodeExportPanel({ project, model }: {
             </Button>
           </div>
           {showPyPreview && (
-            <pre className="mt-3 bg-gray-900 text-gray-100 rounded-lg p-4 overflow-x-auto text-xs font-mono whitespace-pre-wrap max-h-96 overflow-y-auto">
+            <pre className="mt-3 bg-muted rounded-lg p-4 overflow-x-auto text-xs font-mono whitespace-pre-wrap max-h-96 overflow-y-auto">
               <code>{pythonScript}</code>
             </pre>
           )}
@@ -454,7 +463,7 @@ function ProjectSummaryPanel({ project, model }: {
   const topFeatures = (model.featureImportances ?? []).slice(0, 3);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {/* Project Overview */}
       <Card>
         <CardHeader>
@@ -619,9 +628,12 @@ function ProjectSummaryPanel({ project, model }: {
 
 function GlossaryTermsCard() {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">Relevante Begriffe für diese Phase</CardTitle>
+    <Card className="bg-muted/30">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base flex items-center gap-2">
+          <BookOpen className="h-4 w-4" />
+          Relevante Begriffe
+        </CardTitle>
       </CardHeader>
       <CardContent>
         <div className="flex flex-wrap gap-2">
