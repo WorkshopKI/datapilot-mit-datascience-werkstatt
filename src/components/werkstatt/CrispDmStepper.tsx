@@ -142,7 +142,7 @@ export function CrispDmStepper({
                 className={cn(
                   'w-14 h-14 rounded-full flex items-center justify-center border-2 transition-all',
                   isActive && 'bg-primary border-primary text-primary-foreground shadow-md shadow-primary/25',
-                  !isActive && isCompleted && 'bg-primary/10 border-primary text-primary',
+                  !isActive && isCompleted && 'bg-orange-50 border-primary text-primary',
                   !isActive && !isCompleted && 'bg-background border-muted-foreground/25 text-muted-foreground group-hover:border-primary/50'
                 )}
               >
