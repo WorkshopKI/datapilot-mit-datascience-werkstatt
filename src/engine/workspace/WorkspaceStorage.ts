@@ -215,6 +215,37 @@ export class WorkspaceStorage {
     return clone;
   }
 
+  /** Clone a user project (deep copy with new ID and timestamps) */
+  static cloneUserProject(projectId: string): WorkspaceProject {
+    const original = this.getProject(projectId);
+    if (!original) {
+      throw new Error(`User project not found: ${projectId}`);
+    }
+
+    const now = new Date().toISOString();
+    const clone: WorkspaceProject = {
+      ...original,
+      id: `project-${Date.now()}-clone`,
+      name: `Kopie: ${original.name}`,
+      createdAt: now,
+      updatedAt: now,
+      phases: original.phases.map(p => ({ ...p })),
+      features: original.features.map(f => ({ ...f })),
+      pipelineSteps: original.pipelineSteps?.map(s => ({ ...s })),
+      trainedModels: original.trainedModels?.map(m => ({
+        ...m,
+        metrics: { ...m.metrics, confusionMatrix: m.metrics.confusionMatrix?.map(row => [...row]) },
+        featureImportances: m.featureImportances?.map(fi => ({ ...fi })),
+        hyperparameters: { ...m.hyperparameters },
+      })),
+    };
+
+    const projects = this.getProjects();
+    projects.push(clone);
+    this.setProjects(projects);
+    return clone;
+  }
+
   static createProject(project: Omit<WorkspaceProject, 'id' | 'createdAt' | 'updatedAt' | 'phases'>): WorkspaceProject {
     const newProject: WorkspaceProject = {
       ...project,

@@ -318,6 +318,81 @@ describe('WorkspaceStorage', () => {
     });
   });
 
+  describe('cloneUserProject', () => {
+    const createTestProject = () =>
+      WorkspaceStorage.createProject({
+        name: 'Original Projekt',
+        description: 'Test Beschreibung',
+        type: 'klassifikation',
+        currentPhase: 'data-preparation',
+        features: [
+          { id: 'f1', name: 'Alter', type: 'numerisch', description: 'Alter' },
+          { id: 'f2', name: 'Klasse', type: 'kategorial', description: 'Zielklasse', isTarget: true },
+        ],
+      });
+
+    it('should generate a new project ID', () => {
+      const original = createTestProject();
+      const clone = WorkspaceStorage.cloneUserProject(original.id);
+      expect(clone.id).toMatch(/^project-/);
+      expect(clone.id).not.toBe(original.id);
+    });
+
+    it('should prefix the name with "Kopie: "', () => {
+      const original = createTestProject();
+      const clone = WorkspaceStorage.cloneUserProject(original.id);
+      expect(clone.name).toBe('Kopie: Original Projekt');
+    });
+
+    it('should store the clone in LocalStorage', () => {
+      const original = createTestProject();
+      const clone = WorkspaceStorage.cloneUserProject(original.id);
+      const stored = WorkspaceStorage.getProject(clone.id);
+      expect(stored).toBeDefined();
+      expect(stored!.name).toBe('Kopie: Original Projekt');
+    });
+
+    it('should deep-copy features (mutation-safe)', () => {
+      const original = createTestProject();
+      const clone = WorkspaceStorage.cloneUserProject(original.id);
+      clone.features[0].name = 'Mutated';
+      const storedOriginal = WorkspaceStorage.getProject(original.id);
+      expect(storedOriginal!.features[0].name).toBe('Alter');
+    });
+
+    it('should have valid timestamps', () => {
+      const original = createTestProject();
+      const clone = WorkspaceStorage.cloneUserProject(original.id);
+      // jsdom can resolve within same ms, so just verify timestamps are ISO strings
+      expect(new Date(clone.createdAt).toISOString()).toBe(clone.createdAt);
+      expect(new Date(clone.updatedAt).toISOString()).toBe(clone.updatedAt);
+    });
+
+    it('should throw for unknown project ID', () => {
+      expect(() => WorkspaceStorage.cloneUserProject('non-existent'))
+        .toThrow('User project not found');
+    });
+
+    it('should copy pipelineSteps if present', () => {
+      const original = createTestProject();
+      WorkspaceStorage.updateProject(original.id, {
+        pipelineSteps: [
+          { id: 's1', type: 'scaling', label: 'StandardScaler', config: { method: 'standard' }, pythonCode: 'code' },
+        ],
+      } as any);
+      const clone = WorkspaceStorage.cloneUserProject(original.id);
+      expect(clone.pipelineSteps).toHaveLength(1);
+      expect(clone.pipelineSteps![0].label).toBe('StandardScaler');
+    });
+
+    it('should result in 2 total projects after clone', () => {
+      createTestProject();
+      const projects = WorkspaceStorage.getProjects();
+      WorkspaceStorage.cloneUserProject(projects[0].id);
+      expect(WorkspaceStorage.getProjects()).toHaveLength(2);
+    });
+  });
+
   describe('setProjects dispatches custom event', () => {
     it('should dispatch werkstatt-projects-changed event', () => {
       let eventFired = false;
