@@ -12,7 +12,7 @@ import {
   TableHeader, TableRow,
 } from '@/components/ui/table';
 import {
-  BarChart3, CheckCircle2, Info, Brain, Eye, GitCompare, Code,
+  BarChart3, CheckCircle2, Info, Brain, Eye, GitCompare, Code, BookOpen, Check,
 } from 'lucide-react';
 import { GlossaryLink } from '../GlossaryLink';
 import type { WorkspaceProject, TrainedModel } from '@/engine/types';
@@ -63,7 +63,7 @@ export function Evaluation({ project, onUpdateProject }: EvaluationProps) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {/* Model Selector */}
       {trainedModels.length > 1 && (
         <Card>
@@ -182,7 +182,7 @@ export function Evaluation({ project, onUpdateProject }: EvaluationProps) {
                 <p className="text-sm text-muted-foreground mb-3">
                   Dieser Code zeigt, wie das Modell in Python trainiert und evaluiert wird.
                 </p>
-                <pre className="bg-gray-900 text-gray-100 rounded-lg p-4 overflow-x-auto text-sm font-mono whitespace-pre-wrap">
+                <pre className="bg-muted rounded-lg p-4 overflow-x-auto text-sm font-mono whitespace-pre-wrap">
                   <code>{selectedModel.pythonCode}</code>
                 </pre>
               </CardContent>
@@ -217,6 +217,15 @@ export function Evaluation({ project, onUpdateProject }: EvaluationProps) {
       </div>
 
       <GlossaryTermsCard />
+
+      {/* Lernbereich-Link (Pattern 12) */}
+      <a
+        href="/lernen/grundlagen#crisp-dm"
+        className="text-sm text-primary hover:underline flex items-center gap-1"
+      >
+        <BookOpen className="h-3.5 w-3.5" />
+        Mehr zu dieser Phase im Lernbereich →
+      </a>
     </div>
   );
 }
@@ -653,7 +662,9 @@ function ModelComparisonTable({ models, projectType, selectedModelId, onSelectMo
                           variant="outline"
                           size="sm"
                           onClick={() => onSelectModel(model.id)}
+                          className="gap-1"
                         >
+                          <Check className="h-3.5 w-3.5" />
                           Auswählen
                         </Button>
                       )}
@@ -679,9 +690,12 @@ function ModelComparisonTable({ models, projectType, selectedModelId, onSelectMo
 
 function GlossaryTermsCard() {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">Relevante Begriffe für diese Phase</CardTitle>
+    <Card className="bg-muted/30">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base flex items-center gap-2">
+          <BookOpen className="h-4 w-4" />
+          Relevante Begriffe
+        </CardTitle>
       </CardHeader>
       <CardContent>
         <div className="flex flex-wrap gap-2">
