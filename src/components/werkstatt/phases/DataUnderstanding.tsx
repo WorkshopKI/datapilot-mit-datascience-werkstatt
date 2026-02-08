@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/table';
 import {
   Database, Upload, FlaskConical, BarChart3,
-  Info, Loader2, AlertTriangle, RefreshCw,
+  Info, Loader2, AlertTriangle, RefreshCw, BookOpen,
 } from 'lucide-react';
 import { GlossaryLink } from '../GlossaryLink';
 import { DataImportZone } from '../DataImportZone';
@@ -580,6 +580,35 @@ export function DataUnderstanding({ project, onUpdateProject }: DataUnderstandin
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Relevante Begriffe (Pattern 11) */}
+      <Card className="bg-muted/30">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <BookOpen className="h-4 w-4" />
+            Relevante Begriffe
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap gap-2">
+            <GlossaryLink term="Explorative Datenanalyse" termId="eda" />
+            <GlossaryLink term="Deskriptive Statistik" termId="mittelwert" />
+            <GlossaryLink term="Fehlende Werte" termId="fehlende-werte" />
+            <GlossaryLink term="Ausreißer" termId="ausreisser" />
+            <GlossaryLink term="Korrelation" />
+            <GlossaryLink term="Verteilung" termId="normalverteilung" />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Lernbereich-Link (Pattern 12) */}
+      <a
+        href="/lernen/grundlagen#crisp-dm"
+        className="text-sm text-primary hover:underline flex items-center gap-1"
+      >
+        <BookOpen className="h-3.5 w-3.5" />
+        Mehr zu dieser Phase im Lernbereich →
+      </a>
     </div>
   );
 }
