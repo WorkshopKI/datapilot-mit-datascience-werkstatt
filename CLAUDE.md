@@ -2,7 +2,7 @@
 
 > Diese Datei wird automatisch von Claude Code gelesen. Sie enthält alle Konventionen,
 > Architektur-Entscheidungen und den Feature-Plan für das Projekt.
-> **Zuletzt aktualisiert:** 2026-02-07 – an tatsächliche Codebasis angepasst.
+> **Zuletzt aktualisiert:** 2026-02-08 – Design System & UI/UX Patterns, Zuständigkeitsregeln aktualisiert.
 
 ---
 
@@ -61,7 +61,7 @@ Der Glossar ist besonders wertvoll: Er enthält fast alle Begriffe die in der DS
 
 ```
 src/
-├── components/              ← 🚫 NICHT ANFASSEN (Lovable-Domäne)
+├── components/              ← ⚠️ Lovable-Domäne (Ausnahmen: werkstatt/phases/)
 │   ├── ui/                  ← shadcn/ui Basis-Komponenten
 │   ├── layout/              ← Navigation, Sidebar, Bottom-Nav
 │   ├── lernen/              ← Lern-Inhalte
@@ -150,13 +150,16 @@ src/
 
 ### Regeln
 
-1. **`components/`** gehört Lovable. Claude Code darf diese Dateien NICHT ändern, es sei denn Thomas bittet explizit darum.
-2. **`engine/`** gehört Claude Code. Hier wird die gesamte Logik implementiert.
-3. **`hooks/`** ist geteilt. Claude Code implementiert die Logik, ändert aber nicht die Hook-Signaturen.
-4. **`engine/types.ts`** ist der Vertrag. Änderungen hier erfordern Koordination mit Lovable. Vor Änderungen Thomas fragen.
-5. **Neue Dateien** im `engine/`-Ordner können jederzeit erstellt werden.
-6. **Neue npm-Pakete** dürfen installiert werden. Erwähne kurz was und warum.
-7. **Bestehende DataPilot-Bereiche** (Lernen, Üben, Nachschlagen) NIEMALS anfassen.
+1. **`components/ui/`, `components/layout/`, `components/lernen/`, `components/nachschlagen/`** gehören Lovable. Claude Code darf diese Dateien NICHT ändern.
+2. **`components/werkstatt/phases/`** darf Claude Code erstellen und anpassen – alle 6 Phasen-Komponenten wurden von Claude Code geschrieben.
+3. **`components/werkstatt/*.tsx`** (außer `phases/`) ist geteilt. Änderungen nur nach Absprache mit Thomas.
+4. **`engine/`** gehört Claude Code. Hier wird die gesamte Logik implementiert.
+5. **`hooks/useWorkspace.ts`**, **`hooks/usePyodide.ts`**, **`hooks/useProject.ts`** darf Claude Code implementieren und anpassen.
+6. **Bestehende Hooks** (`useCanvasState`, `useChallengeProgress`, `useProgress`, `useScrollSpy`, `use-mobile`, `use-toast`) NICHT anfassen.
+7. **`engine/types.ts`** ist der Vertrag. Änderungen hier erfordern Koordination mit Lovable. Vor Änderungen Thomas fragen.
+8. **Neue Dateien** im `engine/`-Ordner können jederzeit erstellt werden.
+9. **Neue npm-Pakete** dürfen installiert werden. Erwähne kurz was und warum.
+10. **Bestehende DataPilot-Bereiche** (Lernen, Üben, Nachschlagen) NIEMALS anfassen.
 
 ---
 
@@ -338,40 +341,340 @@ TutorService.getNextSteps(phaseId): string[]
 
 ---
 
-## Design System (für eventuelle UI-Anpassungen)
+## Design System & UI/UX Patterns
 
-Falls Claude Code UI-Elemente anpassen muss (z.B. Visualisierungen einbetten):
+### Grundregel
 
-```css
-/* Primary */
-bg-orange-500, hover:bg-orange-600, text-orange-500
+**Bevor du eine UI-Komponente in `components/werkstatt/phases/` erstellst oder änderst, lies ZUERST diese Referenz-Dateien:**
 
-/* Cards */
-bg-white rounded-xl border border-gray-200 p-6
+1. `src/pages/lernen/Grundlagen.tsx` – Beste Referenz für Seitenstruktur, Card-Layouts, Info-Boxen
+2. `src/pages/nachschlagen/MetrikenReferenz.tsx` – Beste Referenz für Tabs, Formel-Boxen, Warnungen
+3. `src/pages/nachschlagen/BegriffeUebersetzungen.tsx` – Beste Referenz für Suche, Zwei-Spalten-Layout
+4. `src/pages/ki-assistenten/copilot/CopilotStartrampe.tsx` – Beste Referenz für Feature-Grids, Vergleichstabellen
+5. `src/components/werkstatt/GlossaryLink.tsx` – Immer für Fachbegriffe nutzen
 
-/* Interactive Card */
-hover:shadow-md hover:border-orange-200 cursor-pointer transition-all
+**Ziel:** Jede Werkstatt-Phase soll visuell nicht von den Lovable-Seiten zu unterscheiden sein. Wenn eine Phase "flacher" oder "technischer" wirkt als die Grundlagen-Seite, fehlen Patterns.
 
-/* Highlight Box (Tutor-Tipps etc.) */
-bg-orange-50 border border-orange-200 rounded-xl p-4
+---
 
-/* Primary Button */
-px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white font-medium rounded-xl
+### Farben (Tailwind Klassen)
 
-/* Text */
-Heading: text-gray-900 font-bold
-Body: text-gray-600
-Muted: text-gray-500
-
-/* Glossar-Links in der Werkstatt */
-text-orange-500 hover:text-orange-600 underline decoration-dotted underline-offset-2
-
-/* Status */
-Erfolg: bg-green-50 text-green-700 border-green-200
-Warnung: bg-amber-50 text-amber-700 border-amber-200
-Fehler: bg-red-50 text-red-700 border-red-200
-Info: bg-blue-50 text-blue-700 border-blue-200
 ```
+Primary:        bg-orange-500 text-white / text-orange-500 (Text/Links)
+Primary Hover:  hover:bg-orange-600 / hover:text-orange-600
+Primary Light:  bg-orange-50 border-orange-200 text-orange-800
+
+Cards:          bg-white rounded-xl border border-gray-200
+Interactive:    hover:shadow-md hover:border-orange-200 cursor-pointer transition-all
+
+Status Erfolg:  bg-green-50 border-green-200 text-green-800
+Status Warnung: bg-amber-50 border-amber-200 text-amber-800
+Status Fehler:  bg-red-50 border-red-200 text-red-800
+Status Info:    bg-blue-50 border-blue-200 text-blue-800
+
+Text Heading:   text-gray-900 font-bold
+Text Body:      text-gray-600 / text-muted-foreground
+Text Muted:     text-gray-500
+
+Glossar-Links:  text-primary hover:text-primary/80 underline decoration-dotted
+```
+
+---
+
+### UI-Komponentenpatterns (PFLICHT)
+
+Claude Code muss diese Patterns verwenden. Jede Werkstatt-Phase braucht MINDESTENS:
+- 1× Didaktischen Einstieg (Tutor-Tipp oder Info-Box)
+- 1× Visuelle Hierarchie (Cards mit Icon-Headers, nicht plain text)
+- 1× GlossaryLinks zu relevanten Begriffen
+- Klares Spacing: `space-y-6` zwischen Hauptabschnitten, `space-y-4` innerhalb
+
+#### Pattern 1: Info-Box / Tutor-Tipp (orange)
+
+Verwende bei: Phasen-Einstiege, didaktische Hinweise, "Was passiert hier?"
+
+```tsx
+<div className="bg-orange-50 border border-orange-200 rounded-xl p-4">
+  <div className="flex gap-3">
+    <Info className="h-5 w-5 text-orange-500 shrink-0 mt-0.5" />
+    <div className="text-sm">
+      <p className="font-medium text-orange-800 mb-1">Was passiert in dieser Phase?</p>
+      <p className="text-orange-700">
+        Du führst eine <GlossaryLink term="Explorative Datenanalyse" /> durch...
+      </p>
+    </div>
+  </div>
+</div>
+```
+
+#### Pattern 2: Warnungs-Banner (amber/gelb)
+
+Verwende bei: Wichtige Hinweise, häufige Fehler, Einschränkungen
+
+```tsx
+<div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+  <div className="flex gap-3">
+    <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+    <p className="text-sm text-amber-800">
+      R² steigt IMMER wenn Variablen hinzugefügt werden – auch nutzlose!
+    </p>
+  </div>
+</div>
+```
+
+#### Pattern 3: Erfolgs-Box (grün)
+
+Verwende bei: Ergebnisse, "Wann verwenden?", positive Hinweise, Erkenntnisse
+
+```tsx
+<div className="bg-green-50 border border-green-200 rounded-xl p-4">
+  <div className="flex gap-3">
+    <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0 mt-0.5" />
+    <div className="text-sm text-green-800">
+      <p className="font-medium mb-1">Erkenntnis</p>
+      <p>Dein Modell hat einen Accuracy von 87% – das ist ein guter Start.</p>
+    </div>
+  </div>
+</div>
+```
+
+#### Pattern 4: Card mit Icon-Header
+
+Verwende bei: Jeden inhaltlichen Abschnitt. NIEMALS plain `<h3>` ohne Card drumherum.
+
+```tsx
+<Card>
+  <CardHeader>
+    <CardTitle className="flex items-center gap-2">
+      <BarChart3 className="h-5 w-5 text-primary" />
+      Deskriptive Statistik
+    </CardTitle>
+    <CardDescription>Überblick über deine numerischen Features</CardDescription>
+  </CardHeader>
+  <CardContent>
+    {/* Inhalt */}
+  </CardContent>
+</Card>
+```
+
+#### Pattern 5: Feature-Grid (3er)
+
+Verwende bei: Optionsauswahl (Algorithmen, Schritte, Modi), Übersichten
+
+```tsx
+<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+  {items.map(item => (
+    <Card
+      key={item.id}
+      className={cn(
+        "cursor-pointer transition-all hover:shadow-md",
+        selected === item.id
+          ? "border-orange-500 bg-orange-50"
+          : "hover:border-orange-200"
+      )}
+      onClick={() => setSelected(item.id)}
+    >
+      <CardHeader className="pb-2">
+        <div className="flex items-center gap-2">
+          <item.icon className="h-5 w-5 text-primary" />
+          <CardTitle className="text-base">{item.label}</CardTitle>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <p className="text-sm text-muted-foreground">{item.description}</p>
+      </CardContent>
+    </Card>
+  ))}
+</div>
+```
+
+#### Pattern 6: Formel-Box / Code-Box
+
+Verwende bei: Python-Code Anzeige, mathematische Formeln, technische Details
+
+```tsx
+<div className="bg-muted rounded-lg p-4">
+  <p className="text-xs text-muted-foreground mb-1">Python-Code:</p>
+  <pre className="text-sm font-mono whitespace-pre-wrap">
+    {generatedCode}
+  </pre>
+</div>
+```
+
+#### Pattern 7: Vergleichstabelle
+
+Verwende bei: Modellvergleich, Metriken-Übersicht, Vor/Nachteile
+
+```tsx
+<Card>
+  <CardContent className="pt-6">
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Modell</TableHead>
+          <TableHead className="text-right">Accuracy</TableHead>
+          <TableHead className="text-right">F1</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {models.map(m => (
+          <TableRow key={m.id} className={m.isBest ? "bg-green-50" : ""}>
+            <TableCell className="font-medium">{m.label}</TableCell>
+            <TableCell className="text-right font-mono">
+              {(m.accuracy * 100).toFixed(1)}%
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  </CardContent>
+</Card>
+```
+
+#### Pattern 8: Tabs für Unterbereiche
+
+Verwende bei: Mehr als 3 inhaltliche Bereiche in einer Phase
+
+```tsx
+<Tabs defaultValue="uebersicht">
+  <TabsList className="grid w-full grid-cols-3">
+    <TabsTrigger value="uebersicht" className="gap-1">
+      <Eye className="h-3.5 w-3.5" /> Übersicht
+    </TabsTrigger>
+    <TabsTrigger value="details" className="gap-1">
+      <BarChart3 className="h-3.5 w-3.5" /> Details
+    </TabsTrigger>
+    <TabsTrigger value="code" className="gap-1">
+      <Code className="h-3.5 w-3.5" /> Python-Code
+    </TabsTrigger>
+  </TabsList>
+  <TabsContent value="uebersicht">...</TabsContent>
+</Tabs>
+```
+
+#### Pattern 9: Badge-Chips für Status/Typ
+
+Verwende bei: Feature-Typen, Phasen-Status, Algorithmus-Typ, Metriken-Werte
+
+```tsx
+<Badge variant="secondary">Numerisch</Badge>
+<Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+  87.3%
+</Badge>
+<Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+  In Arbeit
+</Badge>
+```
+
+#### Pattern 10: Leerer Zustand
+
+Verwende bei: Wenn noch keine Daten/Modelle/Ergebnisse vorhanden
+
+```tsx
+<Card className="border-dashed">
+  <CardHeader className="text-center">
+    <div className="mx-auto p-4 rounded-full bg-muted w-fit">
+      <Database className="h-10 w-10 text-muted-foreground" />
+    </div>
+    <CardTitle>Noch keine Daten</CardTitle>
+    <CardDescription>
+      Lade eine CSV-Datei hoch oder generiere synthetische Daten.
+    </CardDescription>
+  </CardHeader>
+</Card>
+```
+
+#### Pattern 11: Glossar-Begriffsbox am Ende einer Phase
+
+Verwende bei: Jede Phase – am Ende eine Box mit relevanten Glossar-Begriffen
+
+```tsx
+<Card className="bg-muted/30">
+  <CardHeader className="pb-2">
+    <CardTitle className="text-base flex items-center gap-2">
+      <BookOpen className="h-4 w-4" />
+      Relevante Begriffe
+    </CardTitle>
+  </CardHeader>
+  <CardContent>
+    <div className="flex flex-wrap gap-2">
+      <GlossaryLink term="Overfitting" />
+      <GlossaryLink term="Cross-Validation" />
+      <GlossaryLink term="Bias-Variance Trade-off" />
+    </div>
+  </CardContent>
+</Card>
+```
+
+#### Pattern 12: Lernbereich-Link
+
+Verwende bei: Jede Phase – Verweis auf die CRISP-DM Theorie
+
+```tsx
+<a
+  href="/lernen/grundlagen#crisp-dm"
+  className="text-sm text-primary hover:underline flex items-center gap-1"
+>
+  <BookOpen className="h-3.5 w-3.5" />
+  Mehr zu dieser Phase im Lernbereich →
+</a>
+```
+
+---
+
+### Layout-Regeln
+
+1. **Max-Width:** `max-w-4xl` für Lese-Seiten (Phasen), `max-w-6xl` für Dashboard-Seiten (Projektseite)
+2. **Container:** `container mx-auto px-4 py-6`
+3. **Hauptabschnitte:** `space-y-6` zwischen Cards/Sektionen
+4. **Innerhalb Cards:** `space-y-4` zwischen Elementen
+5. **Grid:** `grid grid-cols-1 md:grid-cols-2 gap-4` für 2-spaltig, `md:grid-cols-3` für 3-spaltig
+6. **Responsive:** Mobile-first. Grids werden auf Mobile zu `grid-cols-1`, Tabs zu vertikalem Scroll
+
+### Didaktische Regeln
+
+1. **Jede Phase beginnt mit einem Tutor-Tipp** (Pattern 1) der erklärt WAS der User hier tut und WARUM
+2. **Fachbegriffe immer als GlossaryLink** – nicht als plain text
+3. **Ergebnisse immer in Kontext setzen** – nicht nur Zahlen zeigen, sondern erklären was sie bedeuten (Pattern 3)
+4. **Warnungen bei häufigen Anfänger-Fehlern** einfügen (Pattern 2)
+5. **Jede Phase endet mit Glossar-Box** (Pattern 11) und Lernbereich-Link (Pattern 12)
+6. **Python-Code immer in Formel-Box** (Pattern 6) zeigen, nicht als plain `<pre>`
+7. **Keine nackte Tabellen** – immer in Card wrappen (Pattern 7)
+8. **Leere Zustände** immer visuell ansprechend (Pattern 10), nie nur Text
+
+### Verbotene Muster
+
+Diese Patterns kommen in den guten Seiten NICHT vor und sollten NIEMALS in Werkstatt-Phasen auftauchen:
+
+- `<h3>` oder `<h4>` direkt im Flow ohne Card-Wrapper
+- Plain `<ul><li>` Listen – stattdessen Cards oder Check-Listen mit Icons
+- `text-muted-foreground` als Haupttext – nur für Beschreibungen und Hilfstext
+- `<pre>` ohne `bg-muted rounded-lg p-4` Wrapper
+- Buttons ohne Icon (jeder Button braucht ein Lucide-Icon links oder rechts)
+- Mehr als 2 Buttons nebeneinander ohne klare Hierarchie (1 Primary + N Secondary/Ghost)
+- Tabellen ohne Zebra-Striping oder Hover-Effekt
+- Leere Zustände als plain Text ("Keine Daten vorhanden")
+- Fehlermeldungen ohne `AlertTriangle`-Icon und rote Alert-Box
+
+---
+
+### Checkliste für jede Phase-Komponente
+
+Bevor du eine Phase-Komponente commitest, prüfe:
+
+- [ ] Hat die Phase einen didaktischen Einstieg (Tutor-Tipp, Info-Box)?
+- [ ] Sind alle Fachbegriffe als `<GlossaryLink>` verlinkt?
+- [ ] Sind alle inhaltlichen Abschnitte in Cards mit Icon-Headers verpackt?
+- [ ] Gibt es Tabs wenn mehr als 3 Unterbereiche existieren?
+- [ ] Hat der leere Zustand ein Icon + beschreibenden Text (Pattern 10)?
+- [ ] Gibt es am Ende eine Glossar-Box (Pattern 11)?
+- [ ] Gibt es einen Lernbereich-Link (Pattern 12)?
+- [ ] Haben alle Buttons ein Icon?
+- [ ] Ist der Python-Code in einer Formel-Box (Pattern 6)?
+- [ ] Sind Metriken/Ergebnisse mit Kontext-Erklärung versehen (Pattern 3)?
+- [ ] Werden Warnungen bei häufigen Fehlern angezeigt (Pattern 2)?
+- [ ] Nutzt die Seite `space-y-6` zwischen Hauptabschnitten?
+- [ ] Sieht die Seite visuell gleichwertig aus wie `Grundlagen.tsx` oder `MetrikenReferenz.tsx`?
 
 ---
 
@@ -650,3 +953,10 @@ Jedes Feature baut auf dem vorherigen auf. Nicht vorspringen.
 1. Lovable-Änderungen in `components/` haben Vorrang
 2. Claude Code-Änderungen in `engine/` haben Vorrang
 3. Bei Konflikten in `hooks/` oder `types/`: Thomas fragen
+
+### „Erstelle oder verbessere eine Phase-Komponente"
+1. Lies den Abschnitt „Design System & UI/UX Patterns" in dieser Datei
+2. Lies die Referenz-Dateien (Grundlagen.tsx, MetrikenReferenz.tsx, CopilotStartrampe.tsx)
+3. Prüfe die Checkliste am Ende des Design-Abschnitts
+4. Alle Texte auf Deutsch, alle Fachbegriffe als GlossaryLink
+5. Teste visuell im Browser – die Phase muss gleichwertig aussehen wie die Lovable-Seiten
