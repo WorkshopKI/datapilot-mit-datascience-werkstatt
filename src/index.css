@@ -181,3 +181,9 @@ All colors MUST be HSL.
     @apply bg-background text-foreground;
   }
 }
+
+/* Disable transitions while dragging sidebar resize handle */
+.sidebar-resizing [data-sidebar="sidebar"],
+.sidebar-resizing .peer > div {
+  transition: none !important;
+}
