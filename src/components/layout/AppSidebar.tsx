@@ -51,11 +51,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useScrollSpy } from "@/hooks/useScrollSpy";
@@ -366,23 +361,16 @@ export function AppSidebar() {
                     size="sm"
                     isActive={isActive}
                   >
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <NavLink
-                          to={`/werkstatt/${proj.id}`}
-                          className={cn(
-                            "flex items-center gap-2 text-muted-foreground hover:text-foreground pr-7",
-                            isActive && "text-primary font-medium"
-                          )}
-                        >
-                          <span className={cn("h-2 w-2 rounded-full shrink-0", colorDot)} />
-                          <span className="truncate">{proj.name}</span>
-                        </NavLink>
-                      </TooltipTrigger>
-                      <TooltipContent side="right" className="max-w-64">
-                        {proj.name}
-                      </TooltipContent>
-                    </Tooltip>
+                    <NavLink
+                      to={`/werkstatt/${proj.id}`}
+                      className={cn(
+                        "flex items-center gap-2 text-muted-foreground hover:text-foreground pr-7",
+                        isActive && "text-primary font-medium"
+                      )}
+                    >
+                      <span className={cn("h-2 w-2 rounded-full shrink-0", colorDot)} />
+                      <span className="truncate">{proj.name}</span>
+                    </NavLink>
                   </SidebarMenuSubButton>
                 )}
 
@@ -440,23 +428,16 @@ export function AppSidebar() {
               size="sm"
               isActive={isActive}
             >
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <NavLink
-                    to={`/werkstatt/${proj.id}`}
-                    className={cn(
-                      "flex items-center gap-2 text-muted-foreground hover:text-foreground",
-                      isActive && "text-primary font-medium"
-                    )}
-                  >
-                    <span className={cn("h-2 w-2 rounded-full shrink-0", colorDot)} />
-                    <span className="truncate">{proj.name}</span>
-                  </NavLink>
-                </TooltipTrigger>
-                <TooltipContent side="right" className="max-w-64">
-                  {proj.name}
-                </TooltipContent>
-              </Tooltip>
+              <NavLink
+                to={`/werkstatt/${proj.id}`}
+                className={cn(
+                  "flex items-center gap-2 text-muted-foreground hover:text-foreground",
+                  isActive && "text-primary font-medium"
+                )}
+              >
+                <span className={cn("h-2 w-2 rounded-full shrink-0", colorDot)} />
+                <span className="truncate">{proj.name}</span>
+              </NavLink>
             </SidebarMenuSubButton>
           </SidebarMenuSubItem>
         );
