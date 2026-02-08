@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useLocation } from "react-router-dom";
+import { useState, useEffect, useRef } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   Home,
   BookOpen,
@@ -20,6 +20,10 @@ import {
   FlaskConical,
   Plus,
   FolderOpen,
+  MoreHorizontal,
+  Pencil,
+  Copy,
+  Trash2,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import {
@@ -40,11 +44,29 @@ import {
   SidebarMenuSubButton,
   useSidebar,
 } from "@/components/ui/sidebar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useScrollSpy } from "@/hooks/useScrollSpy";
 import { WorkspaceStorage } from "@/engine/workspace/WorkspaceStorage";
 import { WorkspaceProject } from "@/engine/types";
+
+const PROJECT_TYPE_COLORS: Record<string, string> = {
+  klassifikation: 'bg-blue-500',
+  regression: 'bg-green-500',
+  clustering: 'bg-purple-500',
+};
 
 // Navigation groups data
 const navigationGroups = [
@@ -126,11 +148,17 @@ export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();
+  const navigate = useNavigate();
   const isOnGrundlagen = location.pathname === "/lernen/grundlagen";
 
   // User projects from LocalStorage
   const [userProjects, setUserProjects] = useState<WorkspaceProject[]>([]);
   const exampleProjects = WorkspaceStorage.getExampleProjects();
+
+  // Inline rename state
+  const [renamingProjectId, setRenamingProjectId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+  const renameInputRef = useRef<HTMLInputElement>(null);
 
   // Load user projects and listen for changes
   useEffect(() => {
@@ -155,6 +183,14 @@ export function AppSidebar() {
   useEffect(() => {
     setUserProjects(WorkspaceStorage.getProjects());
   }, [location.pathname]);
+
+  // Focus rename input when entering rename mode
+  useEffect(() => {
+    if (renamingProjectId && renameInputRef.current) {
+      renameInputRef.current.focus();
+      renameInputRef.current.select();
+    }
+  }, [renamingProjectId]);
 
   // State für offene Gruppen - initial basierend auf aktueller Route
   const [openGroups, setOpenGroups] = useState<Set<string>>(() => {
@@ -213,6 +249,43 @@ export function AppSidebar() {
 
   const activeGroup = getActiveGroup();
 
+  // --- Context menu handlers ---
+
+  const handleRenameStart = (proj: WorkspaceProject) => {
+    setRenamingProjectId(proj.id);
+    setRenameValue(proj.name);
+  };
+
+  const handleRenameSubmit = (id: string) => {
+    const trimmed = renameValue.trim();
+    if (trimmed && trimmed !== '') {
+      WorkspaceStorage.updateProject(id, { name: trimmed });
+      setUserProjects(WorkspaceStorage.getProjects());
+    }
+    setRenamingProjectId(null);
+  };
+
+  const handleRenameCancel = () => {
+    setRenamingProjectId(null);
+  };
+
+  const handleDuplicate = (id: string) => {
+    const clone = WorkspaceStorage.cloneUserProject(id);
+    setUserProjects(WorkspaceStorage.getProjects());
+    navigate(`/werkstatt/${clone.id}`);
+  };
+
+  const handleDelete = (proj: WorkspaceProject) => {
+    const confirmed = window.confirm(`Projekt "${proj.name}" wirklich löschen?`);
+    if (!confirmed) return;
+    WorkspaceStorage.deleteProject(proj.id);
+    setUserProjects(WorkspaceStorage.getProjects());
+    // Navigate away if the deleted project is currently active
+    if (location.pathname === `/werkstatt/${proj.id}`) {
+      navigate('/werkstatt');
+    }
+  };
+
   /** Render the Werkstatt submenu with categories */
   const renderWerkstattSubmenu = () => (
     <SidebarMenuSub>
@@ -262,28 +335,88 @@ export function AppSidebar() {
         <>
           <li>
             <p className="px-2 pt-3 pb-1 text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-wider">
-              Meine Projekte
+              Meine Projekte ({userProjects.length})
             </p>
           </li>
           {userProjects.map((proj) => {
             const isActive = location.pathname === `/werkstatt/${proj.id}`;
+            const isRenaming = renamingProjectId === proj.id;
+            const colorDot = PROJECT_TYPE_COLORS[proj.type] || 'bg-gray-400';
+
             return (
-              <SidebarMenuSubItem key={proj.id}>
-                <SidebarMenuSubButton
-                  asChild
-                  size="sm"
-                  isActive={isActive}
-                >
-                  <NavLink
-                    to={`/werkstatt/${proj.id}`}
-                    className={cn(
-                      "flex items-center gap-2 text-muted-foreground hover:text-foreground",
-                      isActive && "text-primary font-medium"
-                    )}
+              <SidebarMenuSubItem key={proj.id} className="group/project relative">
+                {isRenaming ? (
+                  <div className="px-2 py-1">
+                    <input
+                      ref={renameInputRef}
+                      type="text"
+                      value={renameValue}
+                      onChange={(e) => setRenameValue(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleRenameSubmit(proj.id);
+                        if (e.key === 'Escape') handleRenameCancel();
+                      }}
+                      onBlur={() => handleRenameSubmit(proj.id)}
+                      className="w-full text-sm px-2 py-1 rounded border border-orange-300 focus:outline-none focus:ring-1 focus:ring-orange-500 bg-background"
+                    />
+                  </div>
+                ) : (
+                  <SidebarMenuSubButton
+                    asChild
+                    size="sm"
+                    isActive={isActive}
                   >
-                    <span className="truncate">{proj.name}</span>
-                  </NavLink>
-                </SidebarMenuSubButton>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <NavLink
+                          to={`/werkstatt/${proj.id}`}
+                          className={cn(
+                            "flex items-center gap-2 text-muted-foreground hover:text-foreground pr-7",
+                            isActive && "text-primary font-medium"
+                          )}
+                        >
+                          <span className={cn("h-2 w-2 rounded-full shrink-0", colorDot)} />
+                          <span className="truncate">{proj.name}</span>
+                        </NavLink>
+                      </TooltipTrigger>
+                      <TooltipContent side="right" className="max-w-64">
+                        {proj.name}
+                      </TooltipContent>
+                    </Tooltip>
+                  </SidebarMenuSubButton>
+                )}
+
+                {/* 3-Dot Context Menu */}
+                {!isRenaming && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        className="absolute right-1 top-1/2 -translate-y-1/2 p-0.5 rounded opacity-0 group-hover/project:opacity-100 hover:bg-accent focus:opacity-100 transition-opacity"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" side="right" className="w-44">
+                      <DropdownMenuItem onClick={() => handleRenameStart(proj)}>
+                        <Pencil className="h-3.5 w-3.5 mr-2" />
+                        Umbenennen
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleDuplicate(proj.id)}>
+                        <Copy className="h-3.5 w-3.5 mr-2" />
+                        Duplizieren
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        className="text-red-600 focus:text-red-600"
+                        onClick={() => handleDelete(proj)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5 mr-2" />
+                        Löschen
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
               </SidebarMenuSubItem>
             );
           })}
@@ -298,6 +431,8 @@ export function AppSidebar() {
       </li>
       {exampleProjects.map((proj) => {
         const isActive = location.pathname === `/werkstatt/${proj.id}`;
+        const colorDot = PROJECT_TYPE_COLORS[proj.type] || 'bg-gray-400';
+
         return (
           <SidebarMenuSubItem key={proj.id}>
             <SidebarMenuSubButton
@@ -305,15 +440,23 @@ export function AppSidebar() {
               size="sm"
               isActive={isActive}
             >
-              <NavLink
-                to={`/werkstatt/${proj.id}`}
-                className={cn(
-                  "flex items-center gap-2 text-muted-foreground hover:text-foreground",
-                  isActive && "text-primary font-medium"
-                )}
-              >
-                <span className="truncate">{proj.name}</span>
-              </NavLink>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <NavLink
+                    to={`/werkstatt/${proj.id}`}
+                    className={cn(
+                      "flex items-center gap-2 text-muted-foreground hover:text-foreground",
+                      isActive && "text-primary font-medium"
+                    )}
+                  >
+                    <span className={cn("h-2 w-2 rounded-full shrink-0", colorDot)} />
+                    <span className="truncate">{proj.name}</span>
+                  </NavLink>
+                </TooltipTrigger>
+                <TooltipContent side="right" className="max-w-64">
+                  {proj.name}
+                </TooltipContent>
+              </Tooltip>
             </SidebarMenuSubButton>
           </SidebarMenuSubItem>
         );
