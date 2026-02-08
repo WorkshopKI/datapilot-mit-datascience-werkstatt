@@ -1,9 +1,10 @@
 // DS Werkstatt Project Page - CRISP-DM Navigation
 import { useParams, useNavigate } from 'react-router-dom';
 import { useProject } from '@/hooks/useProject';
+import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, ChevronLeft, ChevronRight, FlaskConical } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, FlaskConical, Info } from 'lucide-react';
 import { CrispDmStepper } from '@/components/werkstatt/CrispDmStepper';
 import { CrispDmPhaseWrapper } from '@/components/werkstatt/CrispDmPhaseWrapper';
 import { BusinessUnderstanding } from '@/components/werkstatt/phases/BusinessUnderstanding';
@@ -12,12 +13,13 @@ import { DataPreparation } from '@/components/werkstatt/phases/DataPreparation';
 import { Modeling } from '@/components/werkstatt/phases/Modeling';
 import { Evaluation } from '@/components/werkstatt/phases/Evaluation';
 import { Deployment } from '@/components/werkstatt/phases/Deployment';
-import { WorkspaceStorage } from '@/engine/workspace/WorkspaceStorage';
+import { WorkspaceStorage, isExampleProject } from '@/engine/workspace/WorkspaceStorage';
 import { WorkspaceProject, Feature } from '@/engine/types';
 
 export default function ProjectPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
+  const { toast } = useToast();
 
   const {
     project,
@@ -36,6 +38,20 @@ export default function ProjectPage() {
     removeFeature,
     refreshProject,
   } = useProject(projectId);
+
+  const isExample = project ? isExampleProject(project.id) : false;
+
+  /** Clone example project, apply updates, and navigate to the copy */
+  const cloneAndApply = (updates: Partial<WorkspaceProject>): void => {
+    if (!project) return;
+    const copy = WorkspaceStorage.cloneExampleProject(project.id);
+    WorkspaceStorage.updateProject(copy.id, updates);
+    toast({
+      title: 'Eigene Kopie angelegt',
+      description: "Das Beispielprojekt wurde unter 'Meine Projekte' kopiert.",
+    });
+    navigate(`/werkstatt/${copy.id}`, { replace: true });
+  };
 
   if (isLoading) {
     return (
@@ -59,19 +75,40 @@ export default function ProjectPage() {
   }
 
   const handleUpdateProject = (updates: Partial<WorkspaceProject>) => {
+    if (isExample) {
+      cloneAndApply(updates);
+      return;
+    }
     WorkspaceStorage.updateProject(project.id, updates);
     refreshProject();
   };
 
   const handleAddFeature = (feature: Omit<Feature, 'id'>) => {
+    if (isExample) {
+      const newFeature: Feature = { ...feature, id: `feature-${Date.now()}` };
+      cloneAndApply({ features: [...project.features, newFeature] });
+      return;
+    }
     addFeature(feature);
   };
 
   const handleUpdateFeature = (featureId: string, updates: Partial<Feature>) => {
+    if (isExample) {
+      const features = project.features.map(f =>
+        f.id === featureId ? { ...f, ...updates } : f
+      );
+      cloneAndApply({ features });
+      return;
+    }
     updateFeature(featureId, updates);
   };
 
   const handleRemoveFeature = (featureId: string) => {
+    if (isExample) {
+      const features = project.features.filter(f => f.id !== featureId);
+      cloneAndApply({ features });
+      return;
+    }
     removeFeature(featureId);
   };
 
@@ -88,15 +125,40 @@ export default function ProjectPage() {
           />
         );
       case 'data-understanding':
-        return <DataUnderstanding />;
+        return (
+          <DataUnderstanding
+            project={project}
+            onUpdateProject={handleUpdateProject}
+          />
+        );
       case 'data-preparation':
-        return <DataPreparation />;
+        return (
+          <DataPreparation
+            project={project}
+            onUpdateProject={handleUpdateProject}
+          />
+        );
       case 'modeling':
-        return <Modeling />;
+        return (
+          <Modeling
+            project={project}
+            onUpdateProject={handleUpdateProject}
+          />
+        );
       case 'evaluation':
-        return <Evaluation />;
+        return (
+          <Evaluation
+            project={project}
+            onUpdateProject={handleUpdateProject}
+          />
+        );
       case 'deployment':
-        return <Deployment />;
+        return (
+          <Deployment
+            project={project}
+            onUpdateProject={handleUpdateProject}
+          />
+        );
       default:
         return null;
     }
@@ -104,8 +166,21 @@ export default function ProjectPage() {
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-6xl">
+      {/* Example project info banner */}
+      {isExample && (
+        <div className="flex items-start gap-3 bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
+          <Info className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-medium text-blue-800">Dies ist ein Beispielprojekt</p>
+            <p className="text-sm text-blue-600">
+              Änderungen werden automatisch als eigene Kopie unter „Meine Projekte" gespeichert.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-4">
         <Button variant="ghost" size="icon" onClick={() => navigate('/werkstatt')}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
@@ -113,7 +188,10 @@ export default function ProjectPage() {
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-1">
             <h1 className="text-xl font-bold">{project.name}</h1>
-            {project.hasDemoData && (
+            {isExample && (
+              <Badge variant="secondary">Beispiel</Badge>
+            )}
+            {!isExample && project.hasDemoData && (
               <Badge variant="secondary">Demo</Badge>
             )}
           </div>
@@ -129,29 +207,27 @@ export default function ProjectPage() {
         </div>
       </div>
 
-      {/* CRISP-DM Stepper */}
-      <div className="mb-8 overflow-x-auto">
-        <CrispDmStepper
-          phases={phases}
-          currentPhase={currentPhase}
-          onPhaseClick={goToPhase}
-          orientation="horizontal"
-        />
-      </div>
-
-      {/* Phase Content with Tutor Panel */}
+      {/* Phase Content with Tutor Panel (Stepper inside left column) */}
       {phaseGuidance && (
         <CrispDmPhaseWrapper
           guidance={phaseGuidance}
           hints={tutorHints}
           showTutorPanel={true}
+          stepper={
+            <CrispDmStepper
+              phases={phases}
+              currentPhase={currentPhase}
+              onPhaseClick={goToPhase}
+              orientation="horizontal"
+            />
+          }
         >
           {renderPhaseContent()}
         </CrispDmPhaseWrapper>
       )}
 
       {/* Navigation Buttons */}
-      <div className="flex justify-between items-center mt-8 pt-6 border-t">
+      <div className="flex justify-between items-center mt-4 pt-4 border-t">
         <Button
           variant="outline"
           onClick={goToPreviousPhase}

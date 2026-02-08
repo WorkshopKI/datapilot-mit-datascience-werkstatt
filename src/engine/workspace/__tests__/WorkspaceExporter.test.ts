@@ -1,6 +1,14 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach, vi } from 'vitest';
 import { WorkspaceExporter } from '../WorkspaceExporter';
 import { WorkspaceProject, DEFAULT_CRISP_DM_PHASES } from '../../types';
+
+// Mock SyntheticTwinGenerator to avoid Pyodide dependency
+const mockGenerate = vi.fn();
+vi.mock('../../data/SyntheticTwinGenerator', () => ({
+  SyntheticTwinGenerator: {
+    generate: (...args: unknown[]) => mockGenerate(...args),
+  },
+}));
 
 // jsdom File does not have .text() – polyfill for tests
 beforeAll(() => {
@@ -33,6 +41,10 @@ function createTestProject(): WorkspaceProject {
 }
 
 describe('WorkspaceExporter', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   describe('exportProject', () => {
     it('should produce valid ExportData', async () => {
       const project = createTestProject();
@@ -118,6 +130,105 @@ describe('WorkspaceExporter', () => {
       const result = await WorkspaceExporter.validateFile(file);
       expect(result.valid).toBe(false);
       expect(result.errors.some(e => e.includes('Pflichtfeld'))).toBe(true);
+    });
+
+    it('should warn when synthetic-twin mode has no syntheticData', async () => {
+      const data = {
+        version: '1.0.0',
+        exportedAt: new Date().toISOString(),
+        project: createTestProject(),
+        exportMode: 'synthetic-twin',
+        encrypted: false,
+      };
+      const file = new File([JSON.stringify(data)], 'no-twin.datapilot');
+      const result = await WorkspaceExporter.validateFile(file);
+      expect(result.valid).toBe(true);
+      expect(result.warnings.some(w => w.includes('synthetic-twin'))).toBe(true);
+    });
+  });
+
+  describe('exportProject with synthetic-twin', () => {
+    it('should call SyntheticTwinGenerator when exportMode is synthetic-twin', async () => {
+      const syntheticData = {
+        rows: [{ Alter: 25 }],
+        rowCount: 1,
+        columnNames: ['Alter'],
+        generatedAt: new Date().toISOString(),
+        config: { rowCount: 100, randomSeed: 42, preserveCorrelations: true },
+        validation: { ksTests: {}, correlationDeviation: 0, passed: true },
+      };
+      mockGenerate.mockResolvedValue(syntheticData);
+
+      const project = createTestProject();
+      const exported = await WorkspaceExporter.exportProject(project, 'synthetic-twin');
+
+      expect(mockGenerate).toHaveBeenCalledOnce();
+      expect(exported.syntheticData).toEqual(syntheticData);
+      expect(exported.exportMode).toBe('synthetic-twin');
+    });
+
+    it('should include syntheticData in the result', async () => {
+      const syntheticData = {
+        rows: [{ A: 1 }, { A: 2 }],
+        rowCount: 2,
+        columnNames: ['A'],
+        generatedAt: new Date().toISOString(),
+        config: { rowCount: 2, randomSeed: 42, preserveCorrelations: true },
+        validation: { ksTests: { A: { statistic: 0.1, pValue: 0.9 } }, correlationDeviation: 0, passed: true },
+      };
+      mockGenerate.mockResolvedValue(syntheticData);
+
+      const exported = await WorkspaceExporter.exportProject(createTestProject(), 'synthetic-twin');
+
+      expect(exported.syntheticData).toBeDefined();
+      expect(exported.syntheticData!.rows).toHaveLength(2);
+      expect(exported.syntheticData!.validation.passed).toBe(true);
+    });
+
+    it('should not include syntheticData with reference mode', async () => {
+      const project = createTestProject();
+      const exported = await WorkspaceExporter.exportProject(project, 'reference');
+
+      expect(mockGenerate).not.toHaveBeenCalled();
+      expect(exported.syntheticData).toBeUndefined();
+    });
+
+    it('should produce valid ExportData structure with syntheticData', async () => {
+      const syntheticData = {
+        rows: [{ X: 1 }],
+        rowCount: 1,
+        columnNames: ['X'],
+        generatedAt: new Date().toISOString(),
+        config: { rowCount: 1, randomSeed: 42, preserveCorrelations: true },
+        validation: { ksTests: {}, correlationDeviation: 0, passed: true },
+      };
+      mockGenerate.mockResolvedValue(syntheticData);
+
+      const exported = await WorkspaceExporter.exportProject(createTestProject(), 'synthetic-twin');
+
+      expect(exported.version).toBe('1.0.0');
+      expect(exported.exportedAt).toBeTruthy();
+      expect(exported.hash).toBeTruthy();
+      expect(exported.exportMode).toBe('synthetic-twin');
+      expect(exported.encrypted).toBe(false);
+      expect(exported.syntheticData).toBeDefined();
+    });
+
+    it('should use default config when no syntheticTwinConfig provided', async () => {
+      mockGenerate.mockResolvedValue({
+        rows: [],
+        rowCount: 0,
+        columnNames: [],
+        generatedAt: new Date().toISOString(),
+        config: { rowCount: 100, randomSeed: 42, preserveCorrelations: true },
+        validation: { ksTests: {}, correlationDeviation: 0, passed: true },
+      });
+
+      await WorkspaceExporter.exportProject(createTestProject(), 'synthetic-twin');
+
+      const callArgs = mockGenerate.mock.calls[0][0];
+      expect(callArgs.randomSeed).toBe(42);
+      expect(callArgs.preserveCorrelations).toBe(true);
     });
   });
 });

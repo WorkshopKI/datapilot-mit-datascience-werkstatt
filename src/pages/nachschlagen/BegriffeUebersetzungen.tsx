@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -13,9 +13,21 @@ type Mode = "schnell" | "stakeholder";
 export default function BegriffeUebersetzungen() {
   const [searchParams, setSearchParams] = useSearchParams();
   const mode = (searchParams.get("modus") as Mode) || "schnell";
+  const termParam = searchParams.get("term");
 
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedTermId, setSelectedTermId] = useState<string | null>(null);
+  // Initialize search from URL ?term= parameter (used by GlossaryLink)
+  const initialSearch = termParam ? (getTermById(termParam)?.name ?? termParam) : "";
+  const [searchQuery, setSearchQuery] = useState(initialSearch);
+  const [selectedTermId, setSelectedTermId] = useState<string | null>(termParam || null);
+
+  // Update search when term parameter changes (e.g. clicking another GlossaryLink)
+  useEffect(() => {
+    if (termParam) {
+      const term = getTermById(termParam);
+      setSearchQuery(term?.name ?? termParam);
+      setSelectedTermId(termParam);
+    }
+  }, [termParam]);
   const [activeCategory, setActiveCategory] = useState<string>(termCategories[0]?.id || "metriken");
 
   // Set mode via URL

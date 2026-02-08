@@ -1,8 +1,9 @@
 // Export/Import functionality for DS Werkstatt projects
 // Produces .datapilot files (JSON) with versioning, integrity hashing, and validation.
 
-import { WorkspaceProject, ExportData, ExportMode } from '../types';
+import { WorkspaceProject, ExportData, ExportMode, SyntheticTwinConfig } from '../types';
 import { generateHash, verifyHash } from './hashUtils';
+import { SyntheticTwinGenerator } from '../data/SyntheticTwinGenerator';
 
 const EXPORT_VERSION = '1.0.0';
 
@@ -91,6 +92,11 @@ function validateExportData(data: unknown): ImportValidationResult {
     }
   }
 
+  // synthetic-twin mode should include syntheticData
+  if (obj.exportMode === 'synthetic-twin' && !obj.syntheticData) {
+    result.warnings.push('Export-Modus ist "synthetic-twin", aber keine synthetischen Daten enthalten.');
+  }
+
   return result;
 }
 
@@ -100,7 +106,8 @@ export class WorkspaceExporter {
    */
   static async exportProject(
     project: WorkspaceProject,
-    exportMode: ExportMode = 'reference'
+    exportMode: ExportMode = 'reference',
+    syntheticTwinConfig?: SyntheticTwinConfig
   ): Promise<ExportData> {
     const exportData: ExportData = {
       version: EXPORT_VERSION,
@@ -109,6 +116,16 @@ export class WorkspaceExporter {
       exportMode,
       encrypted: false,
     };
+
+    // Generate synthetic twin data when requested
+    if (exportMode === 'synthetic-twin') {
+      const config: SyntheticTwinConfig = syntheticTwinConfig ?? {
+        rowCount: project.rowCount ?? 100,
+        randomSeed: 42,
+        preserveCorrelations: true,
+      };
+      exportData.syntheticData = await SyntheticTwinGenerator.generate(config);
+    }
 
     // Generate integrity hash over the project data
     exportData.hash = await generateHash(JSON.stringify(project));
@@ -121,9 +138,10 @@ export class WorkspaceExporter {
    */
   static async exportToFile(
     project: WorkspaceProject,
-    exportMode: ExportMode = 'reference'
+    exportMode: ExportMode = 'reference',
+    syntheticTwinConfig?: SyntheticTwinConfig
   ): Promise<void> {
-    const exportData = await this.exportProject(project, exportMode);
+    const exportData = await this.exportProject(project, exportMode, syntheticTwinConfig);
     const json = JSON.stringify(exportData, null, 2);
     const blob = new Blob([json], { type: 'application/json' });
     const url = URL.createObjectURL(blob);

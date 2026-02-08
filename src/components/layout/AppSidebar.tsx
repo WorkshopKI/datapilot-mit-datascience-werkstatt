@@ -18,6 +18,8 @@ import {
   Handshake,
   Bot,
   FlaskConical,
+  Plus,
+  FolderOpen,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import {
@@ -41,6 +43,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useScrollSpy } from "@/hooks/useScrollSpy";
+import { WorkspaceStorage } from "@/engine/workspace/WorkspaceStorage";
+import { WorkspaceProject } from "@/engine/types";
 
 // Navigation groups data
 const navigationGroups = [
@@ -124,6 +128,34 @@ export function AppSidebar() {
   const location = useLocation();
   const isOnGrundlagen = location.pathname === "/lernen/grundlagen";
 
+  // User projects from LocalStorage
+  const [userProjects, setUserProjects] = useState<WorkspaceProject[]>([]);
+  const exampleProjects = WorkspaceStorage.getExampleProjects();
+
+  // Load user projects and listen for changes
+  useEffect(() => {
+    const loadUserProjects = () => {
+      setUserProjects(WorkspaceStorage.getProjects());
+    };
+
+    loadUserProjects();
+
+    // Listen for custom storage event
+    window.addEventListener('werkstatt-projects-changed', loadUserProjects);
+    // Also listen for storage events from other tabs
+    window.addEventListener('storage', loadUserProjects);
+
+    return () => {
+      window.removeEventListener('werkstatt-projects-changed', loadUserProjects);
+      window.removeEventListener('storage', loadUserProjects);
+    };
+  }, []);
+
+  // Reload user projects on route change (covers navigation after clone)
+  useEffect(() => {
+    setUserProjects(WorkspaceStorage.getProjects());
+  }, [location.pathname]);
+
   // State für offene Gruppen - initial basierend auf aktueller Route
   const [openGroups, setOpenGroups] = useState<Set<string>>(() => {
     const initial = new Set<string>();
@@ -181,6 +213,114 @@ export function AppSidebar() {
 
   const activeGroup = getActiveGroup();
 
+  /** Render the Werkstatt submenu with categories */
+  const renderWerkstattSubmenu = () => (
+    <SidebarMenuSub>
+      {/* Übersicht */}
+      <SidebarMenuSubItem>
+        <SidebarMenuSubButton
+          asChild
+          size="sm"
+          isActive={location.pathname === "/werkstatt"}
+        >
+          <NavLink
+            to="/werkstatt"
+            end
+            className={cn(
+              "flex items-center gap-2 text-muted-foreground hover:text-foreground",
+              location.pathname === "/werkstatt" && "text-primary font-medium"
+            )}
+          >
+            <FolderOpen className="h-3.5 w-3.5" />
+            Übersicht
+          </NavLink>
+        </SidebarMenuSubButton>
+      </SidebarMenuSubItem>
+
+      {/* Neues Projekt */}
+      <SidebarMenuSubItem>
+        <SidebarMenuSubButton
+          asChild
+          size="sm"
+          isActive={location.pathname === "/werkstatt/neu"}
+        >
+          <NavLink
+            to="/werkstatt/neu"
+            className={cn(
+              "flex items-center gap-2 text-muted-foreground hover:text-foreground",
+              location.pathname === "/werkstatt/neu" && "text-primary font-medium"
+            )}
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Neues Projekt
+          </NavLink>
+        </SidebarMenuSubButton>
+      </SidebarMenuSubItem>
+
+      {/* Meine Projekte (only if user has projects) */}
+      {userProjects.length > 0 && (
+        <>
+          <li>
+            <p className="px-2 pt-3 pb-1 text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-wider">
+              Meine Projekte
+            </p>
+          </li>
+          {userProjects.map((proj) => {
+            const isActive = location.pathname === `/werkstatt/${proj.id}`;
+            return (
+              <SidebarMenuSubItem key={proj.id}>
+                <SidebarMenuSubButton
+                  asChild
+                  size="sm"
+                  isActive={isActive}
+                >
+                  <NavLink
+                    to={`/werkstatt/${proj.id}`}
+                    className={cn(
+                      "flex items-center gap-2 text-muted-foreground hover:text-foreground",
+                      isActive && "text-primary font-medium"
+                    )}
+                  >
+                    <span className="truncate">{proj.name}</span>
+                  </NavLink>
+                </SidebarMenuSubButton>
+              </SidebarMenuSubItem>
+            );
+          })}
+        </>
+      )}
+
+      {/* Beispielprojekte (always visible) */}
+      <li>
+        <p className="px-2 pt-3 pb-1 text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-wider">
+          Beispielprojekte
+        </p>
+      </li>
+      {exampleProjects.map((proj) => {
+        const isActive = location.pathname === `/werkstatt/${proj.id}`;
+        return (
+          <SidebarMenuSubItem key={proj.id}>
+            <SidebarMenuSubButton
+              asChild
+              size="sm"
+              isActive={isActive}
+            >
+              <NavLink
+                to={`/werkstatt/${proj.id}`}
+                className={cn(
+                  "flex items-center gap-2 text-muted-foreground hover:text-foreground",
+                  isActive && "text-primary font-medium"
+                )}
+              >
+                <span className="truncate">{proj.name}</span>
+              </NavLink>
+            </SidebarMenuSubButton>
+          </SidebarMenuSubItem>
+        );
+      })}
+    </SidebarMenuSub>
+  );
+
   return (
     <Sidebar collapsible="icon">
       <SidebarContent className="pt-4">
@@ -217,9 +357,9 @@ export function AppSidebar() {
                 const isGroupActive = activeGroup === group.id;
 
                 return (
-                  <Collapsible 
-                    key={group.id} 
-                    open={openGroups.has(group.id)} 
+                  <Collapsible
+                    key={group.id}
+                    open={openGroups.has(group.id)}
                     onOpenChange={() => toggleGroup(group.id)}
                     className="group/collapsible"
                   >
@@ -245,6 +385,10 @@ export function AppSidebar() {
 
                       {!collapsed && (
                         <CollapsibleContent>
+                          {/* Special rendering for Werkstatt with dynamic projects */}
+                          {group.id === "werkstatt" ? (
+                            renderWerkstattSubmenu()
+                          ) : (
                           <SidebarMenuSub>
                             {group.items.map((item) => {
                               // Special handling for Grundlagen - show scroll spy sub-items
@@ -295,7 +439,7 @@ export function AppSidebar() {
                               }
 
                               // Check if this item or its sub-routes are active
-                              const isItemActive = location.pathname === item.href || 
+                              const isItemActive = location.pathname === item.href ||
                                 (item.id === "ki-tutor" && location.pathname.startsWith("/ki-assistenten/tutor")) ||
                                 (item.id === "ki-copilot" && location.pathname.startsWith("/ki-assistenten/copilot"));
 
@@ -326,6 +470,7 @@ export function AppSidebar() {
                               );
                             })}
                           </SidebarMenuSub>
+                          )}
                         </CollapsibleContent>
                       )}
                     </SidebarMenuItem>

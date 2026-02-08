@@ -45,6 +45,13 @@ export interface WorkspaceProject {
   rowCount?: number;
   // Mock flags
   hasDemoData?: boolean;
+  // Data Preparation (Feature 5)
+  pipelineSteps?: PipelineStep[];
+  preparedDataSummary?: PreparedDataSummary;
+  // Modeling + Evaluation (Feature 6)
+  trainedModels?: TrainedModel[];
+  selectedModelId?: string;
+  targetColumn?: string;
 }
 
 export interface WorkspaceState {
@@ -68,6 +75,8 @@ export interface ExportData {
   encrypted: boolean;
   /** File manifest for re-import validation */
   fileManifest?: FileManifest;
+  /** Synthetic twin data for privacy-preserving export */
+  syntheticData?: SyntheticTwinData;
 }
 
 /** Manifest describing the original data source for re-import validation */
@@ -80,12 +89,149 @@ export interface FileManifest {
   columns: string[];
 }
 
-// --- Interfaces below will be added with later features ---
-// TODO(pyodide): DataSourceConfig – Feature 2
-// TODO(pyodide): PipelineStep – Feature 5
-// TODO(pyodide): TrainedModel – Feature 6
-// TODO(pyodide): ModelMetrics – Feature 6
-// TODO(data): SyntheticTwinConfig – Feature 8
+// --- Data Preparation Pipeline (Feature 5) ---
+
+export type PipelineStepType =
+  | 'missing-values'
+  | 'outlier-removal'
+  | 'encoding'
+  | 'scaling'
+  | 'feature-selection'
+  | 'train-test-split';
+
+export interface MissingValuesConfig {
+  strategy: 'drop-rows' | 'fill-mean' | 'fill-median' | 'fill-mode' | 'fill-constant';
+  columns: string[];
+  fillValue?: string;
+}
+
+export interface OutlierRemovalConfig {
+  method: 'zscore' | 'iqr';
+  threshold: number;
+  columns: string[];
+}
+
+export interface EncodingConfig {
+  method: 'one-hot' | 'label';
+  columns: string[];
+  dropFirst?: boolean;
+}
+
+export interface ScalingConfig {
+  method: 'standard' | 'minmax';
+  columns: string[];
+}
+
+export interface FeatureSelectionConfig {
+  method: 'drop-columns' | 'keep-columns';
+  columns: string[];
+}
+
+export interface TrainTestSplitConfig {
+  testSize: number;
+  randomState: number;
+  stratify?: string;
+}
+
+export type PipelineStepConfig =
+  | MissingValuesConfig
+  | OutlierRemovalConfig
+  | EncodingConfig
+  | ScalingConfig
+  | FeatureSelectionConfig
+  | TrainTestSplitConfig;
+
+export interface PipelineStep {
+  id: string;
+  type: PipelineStepType;
+  label: string;
+  config: PipelineStepConfig;
+  pythonCode: string;
+  appliedAt?: string;
+  resultSummary?: string;
+}
+
+export interface PreparedDataSummary {
+  rowCount: number;
+  columnCount: number;
+  columnNames: string[];
+  numericColumns: string[];
+  categoricalColumns: string[];
+  trainRows?: number;
+  testRows?: number;
+  hasSplit: boolean;
+}
+
+// --- Modeling + Evaluation (Feature 6) ---
+
+export type AlgorithmType =
+  | 'logistic-regression' | 'decision-tree-classifier'
+  | 'random-forest-classifier' | 'knn-classifier'
+  | 'linear-regression' | 'ridge-regression'
+  | 'decision-tree-regressor' | 'random-forest-regressor'
+  | 'kmeans' | 'dbscan';
+
+export interface AlgorithmConfig {
+  type: AlgorithmType;
+  hyperparameters: Record<string, number | string | boolean>;
+}
+
+export interface ModelMetrics {
+  accuracy?: number;
+  precision?: number;
+  recall?: number;
+  f1Score?: number;
+  rocAuc?: number;
+  confusionMatrix?: number[][];
+  classLabels?: string[];
+  r2?: number;
+  rmse?: number;
+  mae?: number;
+  silhouetteScore?: number;
+  inertia?: number;
+  nClusters?: number;
+}
+
+export interface FeatureImportance {
+  feature: string;
+  importance: number;
+}
+
+export interface TrainedModel {
+  id: string;
+  algorithmType: AlgorithmType;
+  algorithmLabel: string;
+  hyperparameters: Record<string, number | string | boolean>;
+  metrics: ModelMetrics;
+  featureImportances?: FeatureImportance[];
+  trainedAt: string;
+  trainingDurationMs: number;
+  pythonCode: string;
+  targetColumn: string;
+}
+
+// --- Synthetischer Zwilling (Feature 8) ---
+
+export interface SyntheticTwinConfig {
+  rowCount: number;
+  randomSeed: number;
+  preserveCorrelations: boolean;
+}
+
+export interface SyntheticTwinValidation {
+  ksTests: Record<string, { statistic: number; pValue: number }>;
+  correlationDeviation: number;
+  passed: boolean;
+}
+
+export interface SyntheticTwinData {
+  rows: Record<string, unknown>[];
+  rowCount: number;
+  columnNames: string[];
+  generatedAt: string;
+  config: SyntheticTwinConfig;
+  validation: SyntheticTwinValidation;
+}
 
 // Default CRISP-DM phases configuration
 export const DEFAULT_CRISP_DM_PHASES: CrispDmPhase[] = [

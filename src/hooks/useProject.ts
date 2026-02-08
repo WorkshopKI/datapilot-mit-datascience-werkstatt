@@ -1,14 +1,20 @@
 // Single project management hook for DS Werkstatt
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { WorkspaceProject, CrispDmPhaseId, Feature } from '@/engine/types';
-import { WorkspaceStorage } from '@/engine/workspace/WorkspaceStorage';
+import { WorkspaceStorage, isExampleProject } from '@/engine/workspace/WorkspaceStorage';
 import { TutorService, PhaseGuidance } from '@/engine/tutor/TutorService';
 
 export function useProject(projectId: string | undefined) {
   const [project, setProject] = useState<WorkspaceProject | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load project
+  // Load project (LocalStorage first, then example templates)
+  const loadProjectById = useCallback((id: string): WorkspaceProject | null => {
+    return WorkspaceStorage.getProject(id)
+      ?? WorkspaceStorage.getExampleProjects().find(p => p.id === id)
+      ?? null;
+  }, []);
+
   useEffect(() => {
     if (!projectId) {
       setProject(null);
@@ -16,17 +22,15 @@ export function useProject(projectId: string | undefined) {
       return;
     }
 
-    const loadedProject = WorkspaceStorage.getProject(projectId);
-    setProject(loadedProject || null);
+    setProject(loadProjectById(projectId));
     setIsLoading(false);
-  }, [projectId]);
+  }, [projectId, loadProjectById]);
 
   // Refresh project data
   const refreshProject = useCallback(() => {
     if (!projectId) return;
-    const loadedProject = WorkspaceStorage.getProject(projectId);
-    setProject(loadedProject || null);
-  }, [projectId]);
+    setProject(loadProjectById(projectId));
+  }, [projectId, loadProjectById]);
 
   // Phase navigation
   const currentPhase = project?.currentPhase || 'business-understanding';

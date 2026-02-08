@@ -95,8 +95,24 @@ src/
 │   │       ├── WorkspaceStorage.test.ts
 │   │       ├── WorkspaceExporter.test.ts
 │   │       └── hashUtils.test.ts
-│   ├── data/                ← Datengeneratoren
-│   │   └── DataGenerator.ts      ← Mock-Daten (Phase 1), wird zu Pyodide
+│   ├── data/                ← Datengeneratoren + Analyse + Preparation + Synthetic Twin
+│   │   ├── DataGenerator.ts      ← Synthetische Daten via Pyodide (sklearn)
+│   │   ├── DataAnalyzer.ts       ← CSV-Parsing + Analyse via Pyodide (pandas)
+│   │   ├── DataPreparator.ts     ← Pipeline-Engine: Code-Builder + Step-Execution
+│   │   ├── SyntheticTwinGenerator.ts ← Gaussian Copula + KS-Test via Pyodide (Feature 8)
+│   │   └── __tests__/
+│   │       ├── DataGenerator.test.ts
+│   │       ├── DataAnalyzer.test.ts
+│   │       ├── DataPreparator.test.ts
+│   │       └── SyntheticTwinGenerator.test.ts
+│   ├── modeling/            ← ML-Training + Evaluation (Feature 6)
+│   │   ├── ModelTrainer.ts       ← Training + Metriken via Pyodide
+│   │   └── __tests__/
+│   │       └── ModelTrainer.test.ts
+│   ├── deployment/          ← Prediction + Code-Export (Feature 7)
+│   │   ├── ModelDeployer.ts      ← Predict, Script/Notebook Export, Download
+│   │   └── __tests__/
+│   │       └── ModelDeployer.test.ts
 │   ├── pyodide/             ← Pyodide WebWorker (implementiert)
 │   │   ├── messageTypes.ts       ← Typisiertes Message-Protokoll
 │   │   ├── pyodide.worker.ts     ← Worker-Script (lädt Pyodide von CDN)
@@ -225,10 +241,11 @@ interface FileManifest {
 ### Noch fehlende Interfaces (werden bei späteren Features ergänzt)
 
 - `DataSourceConfig` – wird bei Feature 2 (Pyodide WebWorker) ergänzt
-- `PipelineStep` – wird bei Feature 5 (Data Preparation) ergänzt
-- `TrainedModel` – wird bei Feature 6 (Modeling) ergänzt
-- `ModelMetrics` – wird bei Feature 6 (Evaluation) ergänzt
-- `SyntheticTwinConfig` – wird bei Feature 8 (Synthetischer Zwilling) ergänzt
+- `PipelineStep` – ✅ implementiert in Feature 5
+- `TrainedModel` – ✅ implementiert in Feature 6
+- `ModelMetrics` – ✅ implementiert in Feature 6
+- `AlgorithmType`, `AlgorithmConfig`, `FeatureImportance` – ✅ implementiert in Feature 6
+- `SyntheticTwinConfig`, `SyntheticTwinValidation`, `SyntheticTwinData` – ✅ implementiert in Feature 8
 
 ### Aktuell implementierte Engine-Module
 
@@ -254,9 +271,34 @@ WorkspaceExporter.exportToFile(project, exportMode?): Promise<void>  // Download
 WorkspaceExporter.importFromFile(file): Promise<WorkspaceProject>    // Validiert + importiert
 WorkspaceExporter.validateFile(file): Promise<ImportValidationResult>
 
-// engine/data/DataGenerator.ts (Mock für Phase 1)
+// engine/data/DataGenerator.ts (Synthetische Daten via Pyodide)
 DataGenerator.generate(config): GeneratedDataset
 DataGenerator.getPreviewData(projectType): GeneratedDataset
+
+// engine/data/DataAnalyzer.ts (CSV-Parsing + Analyse via Pyodide)
+DataAnalyzer.analyzeCSV(csvContent): Promise<DataAnalysisResult>
+DataAnalyzer.analyzeDataFrame(rows, columns): Promise<DataAnalysisResult>
+DataAnalyzer.buildAnalyzeCSVCode(csvContent): string
+DataAnalyzer.buildAnalyzeDataFrameCode(dataJson, columns): string
+
+// engine/data/DataPreparator.ts (Pipeline-Engine via Pyodide)
+DataPreparator.initializePipeline(): Promise<PreparedDataSummary>
+DataPreparator.applyStep(step): Promise<StepExecutionResult>
+DataPreparator.replayPipeline(steps): Promise<StepExecutionResult>
+DataPreparator.getDataSummary(): Promise<PreparedDataSummary>
+DataPreparator.buildStepCode(step): string
+DataPreparator.buildMissingValuesCode(config): string
+DataPreparator.buildOutlierRemovalCode(config): string
+DataPreparator.buildEncodingCode(config): string
+DataPreparator.buildScalingCode(config): string
+DataPreparator.buildFeatureSelectionCode(config): string
+DataPreparator.buildTrainTestSplitCode(config): string
+
+// engine/data/SyntheticTwinGenerator.ts (Statische Klasse, Gaussian Copula via Pyodide)
+SyntheticTwinGenerator.generate(config): Promise<SyntheticTwinData>
+SyntheticTwinGenerator.extractProfile(): Promise<DataProfile>
+SyntheticTwinGenerator.buildGenerationCode(config): string
+SyntheticTwinGenerator.buildValidationCode(): string
 
 // engine/pyodide/PyodideManager.ts (Singleton, echtes Pyodide via WebWorker)
 PyodideManager.getInstance(): PyodideManager
@@ -271,6 +313,22 @@ manager.getState(): PyodideState
 
 // engine/pyodide/PyodideWorker.ts (Re-Exports für Backward-Compat)
 // PyodideWorker = PyodideManager, getPyodideWorker() = getInstance()
+
+// engine/modeling/ModelTrainer.ts (Statische Klasse, ML-Training via Pyodide)
+ModelTrainer.trainModel(config, targetColumn, projectType): Promise<TrainingResult>
+ModelTrainer.trainClusteringModel(config): Promise<TrainingResult>
+ModelTrainer.getAvailableAlgorithms(projectType): AlgorithmInfo[]
+ModelTrainer.getDefaultHyperparameters(algorithmType): HyperparameterDef[]
+ModelTrainer.getAlgorithmLabel(algorithmType): string
+ModelTrainer.buildTrainingCode(config, targetColumn, projectType): string
+ModelTrainer.buildClusteringCode(config): string
+
+// engine/deployment/ModelDeployer.ts (Statische Klasse, Prediction + Export)
+ModelDeployer.predict(inputValues, targetColumn, projectType): Promise<PredictionResult>
+ModelDeployer.buildPythonScript(project, model): string
+ModelDeployer.buildNotebook(project, model): string
+ModelDeployer.downloadFile(content, filename, mimeType): void
+ModelDeployer.buildPredictionCode(inputValues, targetColumn, projectType): string
 
 // engine/tutor/TutorService.ts
 TutorService.getPhaseGuidance(phaseId): PhaseGuidance
@@ -416,67 +474,94 @@ Jedes Feature baut auf dem vorherigen auf. Nicht vorspringen.
 
 **Hinweis:** Pyodide ist ~15-20 MB. Caching via Service Worker.
 
-### Feature 3: Synthetische Datengenerierung
+### Feature 3: Synthetische Datengenerierung ✅ IMPLEMENTIERT
 **Ordner:** `engine/data/`
 **Ziel:** Basierend auf Use-Case-Definition realistische Daten erzeugen.
 
-- [ ] Wrapper um sklearn's `make_classification`, `make_regression`, `make_blobs`
-- [ ] Feature-Namen aus Projekt-Definition übernehmen
-- [ ] Slider-Parameter durchreichen
-- [ ] Reproduzierbarkeit über Random Seed
+- [x] Wrapper um sklearn's `make_classification`, `make_regression`, `make_blobs`
+- [x] Feature-Namen aus Projekt-Definition übernehmen
+- [x] Slider-Parameter durchreichen (noiseFactor)
+- [x] Reproduzierbarkeit über Random Seed
 
-### Feature 4: CSV-Import + Data Understanding Phase
+### Feature 4: CSV-Import + Data Understanding Phase ✅ IMPLEMENTIERT
 **Ordner:** `engine/data/` + `components/werkstatt/phases/DataUnderstanding.tsx`
 **Ziel:** Echte oder synthetische Daten erkunden.
 
-- [ ] CSV/Excel-Parser über Pyodide (pandas)
-- [ ] Automatische Typ-Erkennung
-- [ ] Deskriptive Statistik
-- [ ] Visualisierungen: Histogramme, Korrelationsmatrix, Boxplots
-- [ ] Missing Values Übersicht
-- [ ] Datentabelle (erste 10 Zeilen)
-- [ ] GlossaryLinks zu relevanten Begriffen einbauen (EDA, Deskriptive Statistik, Outlier, etc.)
+- [x] CSV-Parser über Pyodide (pandas) – `DataAnalyzer.analyzeCSV()`
+- [x] Automatische Typ-Erkennung (numerisch vs. kategorial)
+- [x] Deskriptive Statistik (Mean, Std, Min, Max, Quartile, Top-Value)
+- [x] Visualisierungen: Korrelationsmatrix (CSS-Grid Heatmap), Fehlende-Werte-Balken
+- [x] Missing Values Übersicht (Gesamtanzahl, pro Spalte mit Farbkodierung)
+- [x] Datentabelle (erste 10 Zeilen) mit Spaltentyp-Badges
+- [x] GlossaryLinks zu relevanten Begriffen (EDA, Deskriptive Statistik, Korrelation, etc.)
+- [x] Synthetische Daten via `DataGenerator.generate()` + Analyse
+- [x] Unit Tests für DataAnalyzer (28 Tests)
 
 **Ausnahme:** Hier darf Claude Code `DataUnderstanding.tsx` anpassen – den Placeholder durch echte Inhalte ersetzen.
 
-### Feature 5: Data Preparation Phase
-**Ordner:** `engine/pyodide/` + `components/werkstatt/phases/DataPreparation.tsx`
+### Feature 5: Data Preparation Phase ✅ IMPLEMENTIERT
+**Ordner:** `engine/data/` + `components/werkstatt/phases/DataPreparation.tsx`
+**Ziel:** Pipeline aus Vorbereitungsschritten mit generiertem Python-Code.
 
-- [ ] Missing Values Handling (entfernen, füllen)
-- [ ] Outlier Entfernung (Z-Score, IQR)
-- [ ] Encoding (One-Hot, Label)
-- [ ] Scaling (StandardScaler, MinMaxScaler)
-- [ ] Feature Selection
-- [ ] Train/Test Split
-- [ ] Pipeline-Steps mit generiertem Code
-- [ ] GlossaryLinks einbauen
+- [x] Missing Values Handling (entfernen, füllen mit Mean/Median/Mode/Konstante)
+- [x] Outlier Entfernung (Z-Score, IQR)
+- [x] Encoding (One-Hot, Label)
+- [x] Scaling (StandardScaler, MinMaxScaler)
+- [x] Feature Selection (drop/keep columns)
+- [x] Train/Test Split (mit Stratifizierung)
+- [x] Pipeline-Steps mit generiertem Code (Python-Code-Tab)
+- [x] GlossaryLinks einbauen
+- [x] Undo via Pipeline-Replay
+- [x] Pipeline wird im Projekt gespeichert (LocalStorage)
+- [x] Unit Tests für DataPreparator (~35 Tests)
 
-### Feature 6: Modeling + Evaluation Phase
-**Ordner:** `engine/pyodide/` + Phasen-Komponenten
+**Ausnahme:** Claude Code darf `DataPreparation.tsx` anpassen.
 
-- [ ] Algorithmus-Auswahl (Regression/Klassifikation/Clustering)
-- [ ] Hyperparameter als Slider
-- [ ] Training in Pyodide
-- [ ] Metriken berechnen
-- [ ] Confusion Matrix, ROC-Kurve, Feature Importance
-- [ ] Modellvergleich
-- [ ] Didaktische Hinweise
-- [ ] GlossaryLinks zu Metriken und Algorithmen
+### Feature 6: Modeling + Evaluation Phase ✅ IMPLEMENTIERT
+**Ordner:** `engine/modeling/` + `components/werkstatt/phases/Modeling.tsx` + `Evaluation.tsx`
+**Ziel:** Modelle trainieren, evaluieren und vergleichen.
 
-### Feature 7: Deployment Phase
-- [ ] „Teste dein Modell" mit Eingabefeldern
-- [ ] Notebook-Export (.ipynb)
-- [ ] Python-Script-Export (.py)
-- [ ] Zusammenfassung
+- [x] Algorithmus-Auswahl (4 Klassifikation, 4 Regression, 2 Clustering)
+- [x] Hyperparameter als Slider (dynamisch pro Algorithmus)
+- [x] Training in Pyodide (ModelTrainer.trainModel / trainClusteringModel)
+- [x] Metriken berechnen (Accuracy, F1, R², RMSE, Silhouette, etc.)
+- [x] Confusion Matrix (CSS Grid Heatmap), Feature Importance (Balkendiagramm)
+- [x] Modellvergleich (Tabelle mit allen Metriken, bestes Modell hervorgehoben)
+- [x] Didaktische Hinweise + GlossaryLinks
+- [x] Python-Code Tab (lesbarer Code pro Modell)
+- [x] Modelle in Projekt persistiert (trainedModels in WorkspaceProject)
+- [x] Unit Tests für ModelTrainer (46 Tests, 204 total)
 
-### Feature 8: Synthetischer Zwilling
+**Ausnahme:** Claude Code hat `Modeling.tsx` und `Evaluation.tsx` ersetzt.
+
+### Feature 7: Deployment Phase ✅ IMPLEMENTIERT
+**Ordner:** `engine/deployment/` + `components/werkstatt/phases/Deployment.tsx`
+**Ziel:** Modell testen, Code exportieren, Projektzusammenfassung.
+
+- [x] „Teste dein Modell" mit Eingabefeldern (pro Feature ein Input)
+- [x] Vorhersage via Pyodide (predict mit _model + X_train/df)
+- [x] Wahrscheinlichkeiten-Anzeige (Balkendiagramm für Klassifikation)
+- [x] Notebook-Export (.ipynb) – Jupyter Notebook mit Markdown + Code-Zellen
+- [x] Python-Script-Export (.py) – Standalone-Script mit Pipeline + Training + Predict
+- [x] Zusammenfassung (Projekt-Steckbrief, CRISP-DM Fortschritt, Daten, Pipeline, Modell)
+- [x] GlossaryLinks (Deployment, Monitoring, Data Drift, MLOps)
+- [x] Unit Tests für ModelDeployer (45 Tests, 249 total)
+
+**Ausnahme:** Claude Code hat `Deployment.tsx` ersetzt.
+
+### Feature 8: Synthetischer Zwilling ✅ IMPLEMENTIERT
 **Ordner:** `engine/data/`
+**Ziel:** Privacy-preserving synthetische Kopie der Daten via Gaussian Copula.
 
-- [ ] Statistische Profile extrahieren
-- [ ] Verteilungsanpassung (numpy)
-- [ ] Gaussian Copula für Korrelationen
-- [ ] Validierung (KS-Test)
-- [ ] Integration in Export
+- [x] Statistische Profile extrahieren (DataProfile, ColumnProfileInfo)
+- [x] Gaussian Copula für korrelierte numerische Spalten (Cholesky + inverse empirische CDF)
+- [x] Proportionales Resampling für kategorische Spalten
+- [x] Validierung via KS-Test (scipy.stats.ks_2samp)
+- [x] Integration in WorkspaceExporter (exportMode: 'synthetic-twin')
+- [x] SyntheticTwinConfig, SyntheticTwinData, SyntheticTwinValidation Interfaces
+- [x] Unit Tests für SyntheticTwinGenerator (28 Tests) + Exporter-Erweiterung (6 Tests, 283 total)
+
+**Ausnahme:** Keine UI-Änderung – ExportModal gehört Lovable.
 
 ### Feature 9 (optional): Supabase Sync Backend
 - [ ] `SupabaseBackend` implementiert `WorkspaceStorage`
