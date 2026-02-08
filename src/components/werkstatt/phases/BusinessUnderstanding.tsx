@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { GlossaryLink, GlossaryText } from '../GlossaryLink';
-import { Plus, Trash2, Edit2, Check, X, Target, Lightbulb } from 'lucide-react';
+import { Plus, Trash2, Edit2, Check, X, Target, Lightbulb, Info, List, BookOpen } from 'lucide-react';
 
 interface BusinessUnderstandingProps {
   project: WorkspaceProject;
@@ -55,6 +55,25 @@ export function BusinessUnderstanding({
 
   return (
     <div className="space-y-6">
+      {/* Didaktischer Einstieg */}
+      <div className="bg-orange-50 border border-orange-200 rounded-xl p-4">
+        <div className="flex gap-3">
+          <Info className="h-5 w-5 text-orange-500 shrink-0 mt-0.5" />
+          <div className="text-sm">
+            <p className="font-medium text-orange-800 mb-1">Was passiert in dieser Phase?</p>
+            <p className="text-orange-700">
+              Im{' '}
+              <GlossaryLink term="Business Understanding">Business Understanding</GlossaryLink>{' '}
+              definierst du das Geschäftsziel deines Projekts: Was soll erreicht werden?
+              Welche{' '}
+              <GlossaryLink term="Feature">Features</GlossaryLink>{' '}
+              stehen zur Verfügung? Dies ist der erste Schritt im{' '}
+              <GlossaryLink term="CRISP-DM">CRISP-DM</GlossaryLink>-Prozess.
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Business Goal Card */}
       <Card>
         <CardHeader>
@@ -138,7 +157,10 @@ export function BusinessUnderstanding({
       {/* Features Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Features (Eingabevariablen)</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <List className="h-5 w-5 text-primary" />
+            Features (Eingabevariablen)
+          </CardTitle>
           <CardDescription>
             <GlossaryText text="Welche [Feature]s stehen für das [Modell] zur Verfügung?" />
           </CardDescription>
@@ -226,10 +248,13 @@ export function BusinessUnderstanding({
         </CardContent>
       </Card>
 
-      {/* Relevant Glossary Terms */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Relevante Begriffe</CardTitle>
+      {/* Relevant Glossary Terms (Pattern 11) */}
+      <Card className="bg-muted/30">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <BookOpen className="h-4 w-4" />
+            Relevante Begriffe
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-2">
@@ -241,6 +266,15 @@ export function BusinessUnderstanding({
           </div>
         </CardContent>
       </Card>
+
+      {/* Lernbereich-Link (Pattern 12) */}
+      <a
+        href="/lernen/grundlagen#crisp-dm"
+        className="text-sm text-primary hover:underline flex items-center gap-1"
+      >
+        <BookOpen className="h-3.5 w-3.5" />
+        Mehr zu dieser Phase im Lernbereich →
+      </a>
     </div>
   );
 }
