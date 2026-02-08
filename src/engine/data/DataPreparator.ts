@@ -211,6 +211,38 @@ _result
     return DataPreparator.parseSummary(execResult.result);
   }
 
+  /**
+   * Fetch preview rows from the current `df` in Pyodide.
+   * @param rowCount – if provided, returns `df.head(rowCount)`; otherwise all rows.
+   */
+  static async getPreviewRows(rowCount?: number): Promise<Record<string, unknown>[]> {
+    const manager = PyodideManager.getInstance();
+    const state = manager.getState();
+
+    if (!state.isReady) {
+      throw new Error('Pyodide ist nicht initialisiert. Bitte zuerst die ML-Engine starten.');
+    }
+
+    const slice = rowCount != null ? `df.head(${rowCount})` : 'df';
+    const code = `
+import json as _json
+_json.loads(${slice}.to_json(orient="records"))
+`.trim();
+
+    const execResult = await manager.runPython(code);
+
+    if (!execResult.success) {
+      throw new Error(`Vorschau-Daten konnten nicht geladen werden: ${execResult.error ?? 'Unbekannter Fehler'}`);
+    }
+
+    const rows = execResult.result as Record<string, unknown>[];
+    if (!Array.isArray(rows)) {
+      throw new Error('Unerwartetes Ergebnis bei Vorschau-Daten');
+    }
+
+    return rows;
+  }
+
   // ============================
   // Code Builders (one per step type)
   // ============================

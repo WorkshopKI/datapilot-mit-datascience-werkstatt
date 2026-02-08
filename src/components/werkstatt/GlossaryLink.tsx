@@ -79,6 +79,8 @@ export function GlossaryLink({ term, termId, className, children }: GlossaryLink
         <div className="border-t px-4 py-2.5">
           <Link
             to={`/nachschlagen/begriffe?term=${encodeURIComponent(id)}`}
+            target="_blank"
+            rel="noopener noreferrer"
             className="flex items-center gap-1.5 text-xs text-primary hover:text-primary/80 transition-colors"
           >
             <BookOpen className="h-3 w-3" />

@@ -131,10 +131,10 @@ describe('DataAnalyzer', () => {
       expect(code).toContain('corr_df.to_json()');
     });
 
-    it('generates preview with head(10)', () => {
+    it('generates preview with head(2000)', () => {
       const code = DataAnalyzer.buildAnalyzeCSVCode('a\n1');
 
-      expect(code).toContain('df.head(10).to_json(orient="records")');
+      expect(code).toContain('df.head(2000).to_json(orient="records")');
     });
 
     it('generates code that returns a complete result dict', () => {
@@ -398,6 +398,95 @@ describe('DataAnalyzer', () => {
       );
 
       expect(result.correlations).toEqual({});
+    });
+  });
+
+  // ===========================================
+  // buildAnalyzeExistingDfCode tests
+  // ===========================================
+
+  describe('buildAnalyzeExistingDfCode', () => {
+    it('generates code that checks for df_original first', () => {
+      const code = DataAnalyzer.buildAnalyzeExistingDfCode();
+
+      expect(code).toContain("if 'df_original' in dir()");
+      expect(code).toContain('_analysis_df = df_original.copy()');
+    });
+
+    it('falls back to df when df_original is not available', () => {
+      const code = DataAnalyzer.buildAnalyzeExistingDfCode();
+
+      expect(code).toContain("elif 'df' in dir()");
+      expect(code).toContain('_analysis_df = df.copy()');
+    });
+
+    it('raises NameError when no DataFrame is found', () => {
+      const code = DataAnalyzer.buildAnalyzeExistingDfCode();
+
+      expect(code).toContain('raise NameError');
+      expect(code).toContain('Kein DataFrame gefunden');
+    });
+
+    it('saves and restores original df state', () => {
+      const code = DataAnalyzer.buildAnalyzeExistingDfCode();
+
+      expect(code).toContain('_saved_df = df.copy()');
+      expect(code).toContain('df = _saved_df');
+    });
+
+    it('contains shared analysis code', () => {
+      const code = DataAnalyzer.buildAnalyzeExistingDfCode();
+
+      expect(code).toContain('columns_info = []');
+      expect(code).toContain('"rowCount": len(df)');
+      expect(code).toContain('"correlations": corr');
+    });
+  });
+
+  // ===========================================
+  // analyzeExistingDataFrame tests
+  // ===========================================
+
+  describe('analyzeExistingDataFrame', () => {
+    it('throws when Pyodide is not ready', async () => {
+      mockPyodideNotReady();
+
+      await expect(DataAnalyzer.analyzeExistingDataFrame()).rejects.toThrow(
+        'Pyodide ist nicht initialisiert',
+      );
+    });
+
+    it('returns DataAnalysisResult on success', async () => {
+      mockPyodideReady();
+      const mockResult = makeMockResult();
+      mockRunPythonSuccess(mockResult);
+
+      const result = await DataAnalyzer.analyzeExistingDataFrame();
+
+      expect(result.rowCount).toBe(3);
+      expect(result.columnCount).toBe(3);
+      expect(result.columns).toHaveLength(3);
+    });
+
+    it('calls PyodideManager.runPython with existing df code', async () => {
+      mockPyodideReady();
+      mockRunPythonSuccess(makeMockResult());
+
+      await DataAnalyzer.analyzeExistingDataFrame();
+
+      expect(mockRunPython).toHaveBeenCalledOnce();
+      const code = mockRunPython.mock.calls[0][0] as string;
+      expect(code).toContain('df_original');
+      expect(code).toContain('_analysis_df');
+    });
+
+    it('throws on Python execution error', async () => {
+      mockPyodideReady();
+      mockRunPythonError('NameError: name \'df\' is not defined');
+
+      await expect(DataAnalyzer.analyzeExistingDataFrame()).rejects.toThrow(
+        'Analyse fehlgeschlagen',
+      );
     });
   });
 });

@@ -562,6 +562,64 @@ describe('DataPreparator', () => {
   });
 
   // ===========================================
+  // getPreviewRows
+  // ===========================================
+
+  describe('getPreviewRows', () => {
+    it('throws when Pyodide is not ready', async () => {
+      mockPyodideNotReady();
+      await expect(DataPreparator.getPreviewRows()).rejects.toThrow('Pyodide ist nicht initialisiert');
+    });
+
+    it('returns array of records on success', async () => {
+      mockPyodideReady();
+      const mockRows = [
+        { Alter: 25, Gehalt: 50000, Abteilung: 'IT' },
+        { Alter: 30, Gehalt: 60000, Abteilung: 'HR' },
+      ];
+      mockRunPythonSuccess(mockRows);
+
+      const result = await DataPreparator.getPreviewRows();
+      expect(result).toEqual(mockRows);
+      expect(result).toHaveLength(2);
+    });
+
+    it('sends code with df.head(N) when rowCount is provided', async () => {
+      mockPyodideReady();
+      mockRunPythonSuccess([{ Alter: 25 }]);
+
+      await DataPreparator.getPreviewRows(10);
+
+      const code = mockRunPython.mock.calls[0][0] as string;
+      expect(code).toContain('df.head(10)');
+    });
+
+    it('sends code without head() when no rowCount is provided', async () => {
+      mockPyodideReady();
+      mockRunPythonSuccess([{ Alter: 25 }]);
+
+      await DataPreparator.getPreviewRows();
+
+      const code = mockRunPython.mock.calls[0][0] as string;
+      expect(code).not.toContain('head(');
+    });
+
+    it('throws on Python error', async () => {
+      mockPyodideReady();
+      mockRunPythonError('NameError: name "df" is not defined');
+
+      await expect(DataPreparator.getPreviewRows()).rejects.toThrow('Vorschau-Daten konnten nicht geladen werden');
+    });
+
+    it('throws on unexpected result format', async () => {
+      mockPyodideReady();
+      mockRunPythonSuccess('not an array');
+
+      await expect(DataPreparator.getPreviewRows()).rejects.toThrow('Unerwartetes Ergebnis');
+    });
+  });
+
+  // ===========================================
   // getDataSummary
   // ===========================================
 

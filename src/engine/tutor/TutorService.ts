@@ -1,7 +1,7 @@
 // Tutor Service Interface (Mock Implementation for Phase 1)
 // Provides contextual hints and guidance during CRISP-DM phases
 
-import { CrispDmPhaseId, WorkspaceProject } from '../types';
+import { CrispDmPhaseId, WorkspaceProject, PipelineStepType, ProjectType } from '../types';
 
 export interface TutorHint {
   id: string;
@@ -18,6 +18,33 @@ export interface PhaseGuidance {
   hints: TutorHint[];
   nextSteps: string[];
 }
+
+export interface PipelineRecommendation {
+  stepType: PipelineStepType;
+  label: string;
+  reason: string;
+  optional: boolean;
+}
+
+const PIPELINE_RECOMMENDATIONS: Record<ProjectType, PipelineRecommendation[]> = {
+  klassifikation: [
+    { stepType: 'missing-values', label: 'Fehlende Werte behandeln', reason: 'Die meisten ML-Algorithmen können nicht mit fehlenden Werten umgehen.', optional: false },
+    { stepType: 'encoding', label: 'Kategoriale Spalten kodieren', reason: 'Algorithmen benötigen numerische Eingaben – kategoriale Daten müssen kodiert werden.', optional: false },
+    { stepType: 'scaling', label: 'Features skalieren', reason: 'Skalierung verbessert die Konvergenz bei vielen Algorithmen (z.B. Logistic Regression, KNN).', optional: false },
+    { stepType: 'train-test-split', label: 'Train-Test-Split', reason: 'Aufteilen in Trainings- und Testdaten zur Bewertung der Modellgüte.', optional: false },
+  ],
+  regression: [
+    { stepType: 'missing-values', label: 'Fehlende Werte behandeln', reason: 'Die meisten ML-Algorithmen können nicht mit fehlenden Werten umgehen.', optional: false },
+    { stepType: 'outlier-removal', label: 'Ausreißer entfernen', reason: 'Ausreißer können Regressionsmodelle stark verzerren.', optional: true },
+    { stepType: 'encoding', label: 'Kategoriale Spalten kodieren', reason: 'Algorithmen benötigen numerische Eingaben.', optional: false },
+    { stepType: 'scaling', label: 'Features skalieren', reason: 'Hilft bei Ridge-Regression und verbessert die Vergleichbarkeit der Koeffizienten.', optional: true },
+    { stepType: 'train-test-split', label: 'Train-Test-Split', reason: 'Aufteilen in Trainings- und Testdaten zur Bewertung der Modellgüte.', optional: false },
+  ],
+  clustering: [
+    { stepType: 'missing-values', label: 'Fehlende Werte behandeln', reason: 'Clustering-Algorithmen benötigen vollständige Daten.', optional: false },
+    { stepType: 'scaling', label: 'Features skalieren', reason: 'Clustering basiert auf Distanzmaßen – ohne Skalierung dominieren Features mit großen Werten.', optional: false },
+  ],
+};
 
 // Phase-specific guidance
 const PHASE_GUIDANCE: Record<CrispDmPhaseId, PhaseGuidance> = {
@@ -203,6 +230,10 @@ export class TutorService {
 
   static getNextSteps(phaseId: CrispDmPhaseId): string[] {
     return PHASE_GUIDANCE[phaseId]?.nextSteps || [];
+  }
+
+  static getPipelineRecommendations(projectType: ProjectType): PipelineRecommendation[] {
+    return PIPELINE_RECOMMENDATIONS[projectType] ?? [];
   }
 
   static getAllPhaseIntros(): { phaseId: CrispDmPhaseId; intro: string }[] {

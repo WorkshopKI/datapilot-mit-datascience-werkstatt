@@ -1,5 +1,5 @@
 // Data Understanding Phase – CSV-Import + Analyse via Pyodide
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -9,9 +9,14 @@ import {
   Table, TableBody, TableCell, TableHead,
   TableHeader, TableRow,
 } from '@/components/ui/table';
+import { Slider } from '@/components/ui/slider';
+import { cn } from '@/lib/utils';
+import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Database, Upload, FlaskConical, BarChart3,
-  Info, Loader2, AlertTriangle, RefreshCw, BookOpen,
+  Info, Loader2, AlertTriangle, RefreshCw, BookOpen, SlidersHorizontal,
+  ArrowUpDown, ChevronUp, ChevronDown, Search, Hash,
 } from 'lucide-react';
 import { GlossaryLink } from '../GlossaryLink';
 import { DataImportZone } from '../DataImportZone';
@@ -20,6 +25,7 @@ import { DataAnalyzer } from '@/engine/data/DataAnalyzer';
 import { DataGenerator } from '@/engine/data/DataGenerator';
 import type { DataAnalysisResult } from '@/engine/data/DataAnalyzer';
 import type { WorkspaceProject } from '@/engine/types';
+import { isExampleProject } from '@/engine/workspace/WorkspaceStorage';
 
 interface DataUnderstandingProps {
   project: WorkspaceProject;
@@ -35,6 +41,17 @@ export function DataUnderstanding({ project, onUpdateProject }: DataUnderstandin
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [dataSourceLabel, setDataSourceLabel] = useState<string>('');
+  const [genRowCount, setGenRowCount] = useState(300);
+  const [genNoiseFactor, setGenNoiseFactor] = useState(0.1);
+
+  // Data preview table state
+  const [previewCount, setPreviewCount] = useState(10);
+  const [showAllRows, setShowAllRows] = useState(false);
+  const [sortColumn, setSortColumn] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const showSyntheticHint = isExampleProject(project.id) || project.hasDemoData;
 
   // Determine current view state
   const viewState: ViewState = (() => {
@@ -50,6 +67,35 @@ export function DataUnderstanding({ project, onUpdateProject }: DataUnderstandin
       await initialize();
     }
   }, [isReady, initialize]);
+
+  // Auto-restore analysis when remounting with existing data
+  const restorationAttempted = useRef(false);
+  useEffect(() => {
+    if (
+      project.dataSource &&
+      !analysisResult &&
+      !isAnalyzing &&
+      !analysisError &&
+      !restorationAttempted.current
+    ) {
+      restorationAttempted.current = true;
+      setIsAnalyzing(true);
+      setDataSourceLabel(project.dataSource);
+
+      const restore = async () => {
+        try {
+          await ensurePyodide();
+          const result = await DataAnalyzer.analyzeExistingDataFrame();
+          setAnalysisResult(result);
+        } catch {
+          setAnalysisError('Bitte Daten erneut laden.');
+        } finally {
+          setIsAnalyzing(false);
+        }
+      };
+      restore();
+    }
+  }, [project.dataSource, analysisResult, isAnalyzing, analysisError, ensurePyodide]);
 
   const handleCSVImport = useCallback(async (file: File) => {
     setAnalysisError(null);
@@ -81,9 +127,9 @@ export function DataUnderstanding({ project, onUpdateProject }: DataUnderstandin
       await ensurePyodide();
       const generated = await DataGenerator.generate({
         type: project.type,
-        rowCount: 200,
+        rowCount: genRowCount,
         features: project.features,
-        noiseFactor: 0.1,
+        noiseFactor: genNoiseFactor,
         randomSeed: 42,
       });
       const result = await DataAnalyzer.analyzeDataFrame(generated.rows, generated.columns);
@@ -98,7 +144,7 @@ export function DataUnderstanding({ project, onUpdateProject }: DataUnderstandin
     } finally {
       setIsAnalyzing(false);
     }
-  }, [ensurePyodide, project.type, project.features, onUpdateProject]);
+  }, [ensurePyodide, project.type, project.features, onUpdateProject, genRowCount, genNoiseFactor]);
 
   const handleReset = useCallback(() => {
     setAnalysisResult(null);
@@ -129,7 +175,22 @@ export function DataUnderstanding({ project, onUpdateProject }: DataUnderstandin
           </div>
         </div>
 
-        {/* Zwei gleichwertige Optionen */}
+        {/* Empfehlung für Beispielprojekte */}
+        {showSyntheticHint && (
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+            <div className="flex gap-3">
+              <FlaskConical className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
+              <div className="text-sm">
+                <p className="font-medium text-blue-800 mb-1">Empfehlung: Synthetische Daten generieren</p>
+                <p className="text-blue-700">
+                  Für dieses Projekt kannst du passende Beispieldaten automatisch erzeugen lassen – ideal, um den kompletten CRISP-DM-Zyklus kennenzulernen.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Zwei Optionen */}
         <div className="grid md:grid-cols-2 gap-4">
           {/* CSV-Import */}
           <Card className="hover:shadow-md hover:border-orange-200 transition-all">
@@ -154,23 +215,77 @@ export function DataUnderstanding({ project, onUpdateProject }: DataUnderstandin
           </Card>
 
           {/* Synthetische Daten */}
-          <Card className="hover:shadow-md hover:border-orange-200 transition-all">
+          <Card className={`hover:shadow-md transition-all ${showSyntheticHint ? 'border-primary border-2' : 'hover:border-orange-200'}`}>
             <CardHeader className="pb-3">
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-lg bg-orange-50">
                   <FlaskConical className="h-5 w-5 text-orange-500" />
                 </div>
                 <CardTitle className="text-base">Synthetische Daten generieren</CardTitle>
+                {showSyntheticHint && (
+                  <Badge className="bg-primary text-primary-foreground">Empfohlen</Badge>
+                )}
               </div>
               <p className="text-sm text-muted-foreground">
                 Erzeuge realistische Beispieldaten passend zu deinem Projekttyp – ideal zum Lernen und Ausprobieren.
               </p>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-4">
               <div className="flex items-center gap-2">
                 <Badge variant="secondary">{project.type}</Badge>
-                <span className="text-xs text-muted-foreground">200 Zeilen</span>
+                <span className="text-xs text-muted-foreground">{genRowCount} Zeilen</span>
               </div>
+
+              {/* Konfiguration */}
+              <div className="bg-muted/50 rounded-lg p-3 space-y-4">
+                <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                  <SlidersHorizontal className="h-4 w-4" />
+                  Daten konfigurieren
+                </div>
+
+                {/* Anzahl Datensätze */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm text-muted-foreground">Anzahl Datensätze</label>
+                    <Badge variant="outline">{genRowCount}</Badge>
+                  </div>
+                  <Slider
+                    value={[genRowCount]}
+                    onValueChange={([v]) => setGenRowCount(v)}
+                    min={100}
+                    max={2000}
+                    step={100}
+                  />
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>100</span>
+                    <span>2000</span>
+                  </div>
+                </div>
+
+                {/* Rauschfaktor */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm text-muted-foreground">Rauschfaktor</label>
+                    <Badge variant="outline">{genNoiseFactor.toFixed(2)}</Badge>
+                  </div>
+                  <Slider
+                    value={[genNoiseFactor * 100]}
+                    onValueChange={([v]) => setGenNoiseFactor(v / 100)}
+                    min={0}
+                    max={50}
+                    step={5}
+                  />
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>0.00</span>
+                    <span>0.50</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground flex items-center gap-1">
+                    <Info className="h-3 w-3 shrink-0" />
+                    Mehr Rauschen = schwierigere Daten für dein Modell
+                  </p>
+                </div>
+              </div>
+
               <Button
                 onClick={handleSyntheticData}
                 className="w-full gap-2"
@@ -365,49 +480,19 @@ export function DataUnderstanding({ project, onUpdateProject }: DataUnderstandin
 
         {/* Tab 2: Datenvorschau */}
         <TabsContent value="vorschau">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <BarChart3 className="h-4 w-4" />
-                Erste {Math.min(result.preview.length, 10)} Zeilen
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      {result.columnNames.map(col => {
-                        const colInfo = result.columns.find(c => c.name === col);
-                        const isNumeric = result.numericColumns.includes(col);
-                        return (
-                          <TableHead key={col}>
-                            <div className="flex flex-col gap-1">
-                              <span className="font-medium">{col}</span>
-                              <Badge variant="outline" className="w-fit text-xs">
-                                {isNumeric ? 'num' : colInfo?.dtype === 'object' ? 'text' : colInfo?.dtype ?? '?'}
-                              </Badge>
-                            </div>
-                          </TableHead>
-                        );
-                      })}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {result.preview.map((row, i) => (
-                      <TableRow key={i}>
-                        {result.columnNames.map(col => (
-                          <TableCell key={col} className="font-mono text-xs">
-                            {formatCellValue(row[col])}
-                          </TableCell>
-                        ))}
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
+          <DataPreviewTable
+            result={result}
+            previewCount={previewCount}
+            setPreviewCount={setPreviewCount}
+            showAllRows={showAllRows}
+            setShowAllRows={setShowAllRows}
+            sortColumn={sortColumn}
+            setSortColumn={setSortColumn}
+            sortDirection={sortDirection}
+            setSortDirection={setSortDirection}
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+          />
         </TabsContent>
 
         {/* Tab 3: Statistiken */}
@@ -547,6 +632,23 @@ export function DataUnderstanding({ project, onUpdateProject }: DataUnderstandin
               </CardTitle>
             </CardHeader>
             <CardContent>
+              {/* Methoden-Erklärung */}
+              <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 mb-4">
+                <div className="flex gap-3">
+                  <Info className="h-5 w-5 text-orange-500 shrink-0 mt-0.5" />
+                  <div className="text-sm">
+                    <p className="font-medium text-orange-800 mb-1">
+                      Methode: <GlossaryLink term="Korrelation (Pearson)" termId="korrelation-statistik">Pearson-Korrelation</GlossaryLink>
+                    </p>
+                    <p className="text-orange-700">
+                      Die Werte zeigen die Stärke des <strong>linearen</strong> Zusammenhangs
+                      zwischen zwei Variablen – von -1 (perfekt gegenläufig) über 0 (kein Zusammenhang)
+                      bis +1 (perfekt gleichläufig).
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               {result.numericColumns.length < 2 ? (
                 <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-700">
                   <Info className="h-4 w-4 inline mr-2" />
@@ -574,6 +676,24 @@ export function DataUnderstanding({ project, onUpdateProject }: DataUnderstandin
                       <span>+1 (positiv)</span>
                     </div>
                   </div>
+
+                  {/* Interpretationshilfe */}
+                  <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs text-muted-foreground mt-2">
+                    <span><strong>|r| &gt; 0.7</strong> → stark</span>
+                    <span><strong>0.3 – 0.7</strong> → mittel</span>
+                    <span><strong>&lt; 0.3</strong> → schwach</span>
+                  </div>
+
+                  {/* Kausalitäts-Warnung */}
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mt-3">
+                    <div className="flex gap-2">
+                      <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                      <p className="text-xs text-amber-800">
+                        <strong>Achtung:</strong> Korrelation ≠ Kausalität – ein hoher Wert bedeutet
+                        nicht, dass eine Variable die andere <em>verursacht</em>.
+                      </p>
+                    </div>
+                  </div>
                 </div>
               )}
             </CardContent>
@@ -583,14 +703,14 @@ export function DataUnderstanding({ project, onUpdateProject }: DataUnderstandin
 
       {/* Relevante Begriffe (Pattern 11) */}
       <Card className="bg-muted/30">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base flex items-center gap-2">
-            <BookOpen className="h-4 w-4" />
+        <CardHeader className="pb-1 pt-3 px-4">
+          <CardTitle className="text-sm flex items-center gap-1.5">
+            <BookOpen className="h-3.5 w-3.5" />
             Relevante Begriffe
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-2">
+        <CardContent className="pb-3 px-4 pt-0">
+          <div className="flex flex-wrap gap-1.5 text-xs">
             <GlossaryLink term="Explorative Datenanalyse" termId="eda" />
             <GlossaryLink term="Deskriptive Statistik" termId="mittelwert" />
             <GlossaryLink term="Fehlende Werte" termId="fehlende-werte" />
@@ -610,6 +730,257 @@ export function DataUnderstanding({ project, onUpdateProject }: DataUnderstandin
         Mehr zu dieser Phase im Lernbereich →
       </a>
     </div>
+  );
+}
+
+// --- DataPreviewTable (interactive data preview with sort, search, slider) ---
+
+function DataPreviewTable({
+  result,
+  previewCount,
+  setPreviewCount,
+  showAllRows,
+  setShowAllRows,
+  sortColumn,
+  setSortColumn,
+  sortDirection,
+  setSortDirection,
+  searchQuery,
+  setSearchQuery,
+}: {
+  result: DataAnalysisResult;
+  previewCount: number;
+  setPreviewCount: (v: number) => void;
+  showAllRows: boolean;
+  setShowAllRows: (v: boolean) => void;
+  sortColumn: string | null;
+  setSortColumn: (v: string | null) => void;
+  sortDirection: 'asc' | 'desc';
+  setSortDirection: (v: 'asc' | 'desc') => void;
+  searchQuery: string;
+  setSearchQuery: (v: string) => void;
+}) {
+  // 1. Filter by search query
+  const filteredRows = useMemo(() => {
+    if (!searchQuery.trim()) return result.preview;
+    const q = searchQuery.toLowerCase();
+    return result.preview.filter(row =>
+      result.columnNames.some(col =>
+        String(row[col] ?? '').toLowerCase().includes(q)
+      )
+    );
+  }, [result.preview, result.columnNames, searchQuery]);
+
+  // 2. Sort
+  const sortedRows = useMemo(() => {
+    if (!sortColumn) return filteredRows;
+    return [...filteredRows].sort((a, b) => {
+      const va = a[sortColumn];
+      const vb = b[sortColumn];
+      if (va == null && vb == null) return 0;
+      if (va == null) return 1;
+      if (vb == null) return -1;
+      if (typeof va === 'number' && typeof vb === 'number') {
+        return sortDirection === 'asc' ? va - vb : vb - va;
+      }
+      const cmp = String(va).localeCompare(String(vb), 'de');
+      return sortDirection === 'asc' ? cmp : -cmp;
+    });
+  }, [filteredRows, sortColumn, sortDirection]);
+
+  // 3. Slice to desired count
+  const displayedRows = showAllRows
+    ? sortedRows
+    : sortedRows.slice(0, previewCount);
+
+  const handleSort = (col: string) => {
+    if (sortColumn === col) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(col);
+      setSortDirection('asc');
+    }
+  };
+
+  const SortIcon = ({ col }: { col: string }) => {
+    if (sortColumn !== col) return <ArrowUpDown className="h-3 w-3 text-muted-foreground/50" />;
+    return sortDirection === 'asc'
+      ? <ChevronUp className="h-3 w-3 text-primary" />
+      : <ChevronDown className="h-3 w-3 text-primary" />;
+  };
+
+  const hasMissingValues = result.columns.some(c => c.missing > 0);
+  const needsScroll = showAllRows || previewCount > 25;
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base flex items-center gap-2">
+          <BarChart3 className="h-4 w-4 text-primary" />
+          Datenvorschau
+          <span className="text-sm font-normal text-muted-foreground ml-1">
+            · {displayedRows.length} von {result.preview.length} Zeilen
+            {searchQuery.trim() && ` (gefiltert aus ${result.preview.length})`}
+          </span>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {/* Toolbar */}
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Search */}
+          <div className="relative max-w-[200px]">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <Input
+              placeholder="Suche..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="pl-7 h-8 text-sm"
+            />
+          </div>
+
+          {/* Spacer */}
+          <div className="flex-1" />
+
+          {/* Row count slider */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground whitespace-nowrap">Zeilen:</span>
+            <Slider
+              value={[previewCount]}
+              onValueChange={([v]) => {
+                setPreviewCount(v);
+                if (showAllRows) setShowAllRows(false);
+              }}
+              min={10}
+              max={100}
+              step={10}
+              disabled={showAllRows}
+              className="w-24"
+            />
+            <Badge variant="outline" className="text-xs min-w-[3rem] text-center">
+              {showAllRows ? 'Alle' : previewCount}
+            </Badge>
+          </div>
+
+          {/* Show all toggle */}
+          <div className="flex items-center gap-1.5">
+            <Checkbox
+              id="show-all-rows"
+              checked={showAllRows}
+              onCheckedChange={(checked) => setShowAllRows(checked === true)}
+            />
+            <label htmlFor="show-all-rows" className="text-xs text-muted-foreground cursor-pointer whitespace-nowrap">
+              Alle
+            </label>
+          </div>
+        </div>
+
+        {/* Table with scroll constraint when showing all rows */}
+        <div className={cn(
+          "overflow-x-auto",
+          needsScroll && "max-h-[600px] overflow-y-auto"
+        )}>
+          <DataTable
+            result={result}
+            displayedRows={displayedRows}
+            sortColumn={sortColumn}
+            handleSort={handleSort}
+            SortIcon={SortIcon}
+          />
+        </div>
+
+        {/* Missing values hint */}
+        {hasMissingValues && (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Info className="h-3 w-3 shrink-0" />
+            <span>
+              Fehlende Werte sind <span className="bg-red-50 text-red-400 px-1 rounded">rot hervorgehoben</span>.
+            </span>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// --- DataTable (inner table component) ---
+
+function DataTable({
+  result,
+  displayedRows,
+  sortColumn,
+  handleSort,
+  SortIcon,
+}: {
+  result: DataAnalysisResult;
+  displayedRows: Record<string, unknown>[];
+  sortColumn: string | null;
+  handleSort: (col: string) => void;
+  SortIcon: React.ComponentType<{ col: string }>;
+}) {
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          {/* Row number column */}
+          <TableHead className="py-1.5 px-2 w-10 text-right sticky top-0 bg-white z-10">
+            <Hash className="h-3 w-3 text-muted-foreground inline" />
+          </TableHead>
+          {result.columnNames.map(col => {
+            const colInfo = result.columns.find(c => c.name === col);
+            const isNumeric = result.numericColumns.includes(col);
+            const isSorted = sortColumn === col;
+            return (
+              <TableHead
+                key={col}
+                className={`py-1.5 px-2 cursor-pointer select-none transition-colors hover:bg-muted/50 sticky top-0 bg-white z-10 ${isSorted ? 'bg-muted/30' : ''}`}
+                onClick={() => handleSort(col)}
+              >
+                <div className="flex flex-col gap-0.5">
+                  <div className="flex items-center gap-1">
+                    <span className="font-medium text-xs">{col}</span>
+                    <SortIcon col={col} />
+                  </div>
+                  <Badge variant="outline" className="w-fit text-[10px] px-1 py-0">
+                    {isNumeric ? 'num' : colInfo?.dtype === 'object' ? 'text' : colInfo?.dtype ?? '?'}
+                  </Badge>
+                </div>
+              </TableHead>
+            );
+          })}
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {displayedRows.length === 0 ? (
+          <TableRow>
+            <TableCell colSpan={result.columnNames.length + 1} className="text-center py-8 text-muted-foreground">
+              <Search className="h-5 w-5 mx-auto mb-2 opacity-50" />
+              Keine Zeilen gefunden.
+            </TableCell>
+          </TableRow>
+        ) : (
+          displayedRows.map((row, i) => (
+            <TableRow key={i}>
+              <TableCell className="py-1 px-2 text-xs text-muted-foreground text-right w-10 font-mono">
+                {i + 1}
+              </TableCell>
+              {result.columnNames.map(col => {
+                const value = row[col];
+                const isMissing = value === null || value === undefined ||
+                  (typeof value === 'number' && isNaN(value));
+                return (
+                  <TableCell
+                    key={col}
+                    className={`py-1 px-2 text-xs font-mono ${isMissing ? 'bg-red-50 text-red-400' : ''}`}
+                  >
+                    {isMissing ? '–' : formatCellValue(value)}
+                  </TableCell>
+                );
+              })}
+            </TableRow>
+          ))
+        )}
+      </TableBody>
+    </Table>
   );
 }
 
@@ -645,7 +1016,7 @@ function CorrelationHeatmap({
         </div>
       ))}
       {/* Rows */}
-      {columns.map(rowCol => (
+      {columns.map((rowCol, rowIdx) => (
         <>
           {/* Row label */}
           <div
@@ -656,7 +1027,26 @@ function CorrelationHeatmap({
             {rowCol.length > 10 ? rowCol.slice(0, 9) + '…' : rowCol}
           </div>
           {/* Cells */}
-          {columns.map(colCol => {
+          {columns.map((colCol, colIdx) => {
+            // Upper triangle: empty cell
+            if (colIdx > rowIdx) {
+              return <div key={`${rowCol}-${colCol}`} />;
+            }
+
+            // Diagonal: dimmed self-correlation
+            if (colIdx === rowIdx) {
+              return (
+                <div
+                  key={`${rowCol}-${colCol}`}
+                  className="flex items-center justify-center rounded text-xs font-mono bg-muted text-muted-foreground"
+                  title={`${rowCol}: Selbstkorrelation`}
+                >
+                  1.00
+                </div>
+              );
+            }
+
+            // Lower triangle: normal colored cell
             const value = correlations[rowCol]?.[colCol] ?? 0;
             return (
               <div

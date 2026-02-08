@@ -14,7 +14,7 @@ import { Modeling } from '@/components/werkstatt/phases/Modeling';
 import { Evaluation } from '@/components/werkstatt/phases/Evaluation';
 import { Deployment } from '@/components/werkstatt/phases/Deployment';
 import { WorkspaceStorage, isExampleProject } from '@/engine/workspace/WorkspaceStorage';
-import { WorkspaceProject, Feature } from '@/engine/types';
+import { WorkspaceProject, Feature, CrispDmPhaseId } from '@/engine/types';
 
 export default function ProjectPage() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -30,6 +30,7 @@ export default function ProjectPage() {
     phaseGuidance,
     tutorHints,
     progressPercent,
+    phasePrerequisites,
     goToPhase,
     goToNextPhase,
     goToPreviousPhase,
@@ -37,20 +38,40 @@ export default function ProjectPage() {
     updateFeature,
     removeFeature,
     refreshProject,
+    replaceProject,
   } = useProject(projectId);
 
   const isExample = project ? isExampleProject(project.id) : false;
 
-  /** Clone example project, apply updates, and navigate to the copy */
+  /** Clone example project, apply updates, and swap in-place (no remount) */
   const cloneAndApply = (updates: Partial<WorkspaceProject>): void => {
     if (!project) return;
+
     const copy = WorkspaceStorage.cloneExampleProject(project.id);
-    WorkspaceStorage.updateProject(copy.id, updates);
+
+    // Preserve current phase + phase status from session state
+    const mergedUpdates = {
+      currentPhase: project.currentPhase,
+      phases: project.phases.map(p => ({ ...p })),
+      ...updates,
+    };
+    const updatedClone = WorkspaceStorage.updateProject(copy.id, mergedUpdates);
+
+    // Silently update URL (no React Router remount)
+    window.history.replaceState(null, '', `/werkstatt/${copy.id}`);
+
+    // Swap project in-place (no remount → component state preserved)
+    if (updatedClone) {
+      replaceProject(updatedClone);
+    }
+
+    // Clean up session state for the old example project
+    try { sessionStorage.removeItem(`ds-werkstatt-example-${project.id}`); } catch { /* ignore */ }
+
     toast({
       title: 'Eigene Kopie angelegt',
       description: "Das Beispielprojekt wurde unter 'Meine Projekte' kopiert.",
     });
-    navigate(`/werkstatt/${copy.id}`, { replace: true });
   };
 
   if (isLoading) {
@@ -111,6 +132,16 @@ export default function ProjectPage() {
     }
     removeFeature(featureId);
   };
+
+  // Compute warnings for phases with unmet prerequisites
+  const phaseWarnings: Partial<Record<CrispDmPhaseId, string>> = {};
+  if (phasePrerequisites) {
+    for (const [phaseId, prereq] of Object.entries(phasePrerequisites)) {
+      if (!prereq.met && prereq.warning) {
+        phaseWarnings[phaseId as CrispDmPhaseId] = prereq.warning;
+      }
+    }
+  }
 
   const renderPhaseContent = () => {
     switch (currentPhase) {
@@ -219,6 +250,7 @@ export default function ProjectPage() {
               currentPhase={currentPhase}
               onPhaseClick={goToPhase}
               orientation="horizontal"
+              phaseWarnings={phaseWarnings}
             />
           }
         >
@@ -226,30 +258,32 @@ export default function ProjectPage() {
         </CrispDmPhaseWrapper>
       )}
 
-      {/* Navigation Buttons */}
-      <div className="flex justify-between items-center mt-4 pt-4 border-t">
-        <Button
-          variant="outline"
-          onClick={goToPreviousPhase}
-          disabled={currentPhaseIndex === 0}
-          className="gap-2"
-        >
-          <ChevronLeft className="h-4 w-4" />
-          Zurück
-        </Button>
+      {/* Sticky Bottom Navigation Bar */}
+      <div className="sticky bottom-0 z-20 mt-6 -mx-4 px-4 border-t bg-background/80 backdrop-blur-sm shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
+        <div className="flex justify-between items-center py-3 max-w-6xl mx-auto">
+          <Button
+            variant="outline"
+            onClick={goToPreviousPhase}
+            disabled={currentPhaseIndex === 0}
+            className="gap-2"
+          >
+            <ChevronLeft className="h-4 w-4" />
+            Zurück
+          </Button>
 
-        <span className="text-sm text-muted-foreground">
-          Phase {currentPhaseIndex + 1} von {phases.length}
-        </span>
+          <span className="text-sm text-muted-foreground">
+            Phase {currentPhaseIndex + 1} von {phases.length}
+          </span>
 
-        <Button
-          onClick={goToNextPhase}
-          disabled={currentPhaseIndex === phases.length - 1}
-          className="gap-2"
-        >
-          Weiter
-          <ChevronRight className="h-4 w-4" />
-        </Button>
+          <Button
+            onClick={goToNextPhase}
+            disabled={currentPhaseIndex === phases.length - 1}
+            className="gap-2"
+          >
+            Weiter
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
     </div>
   );

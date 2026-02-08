@@ -1,14 +1,15 @@
 // CRISP-DM Stepper component
 import { CrispDmPhase, CrispDmPhaseId } from '@/engine/types';
 import { cn } from '@/lib/utils';
-import { CheckCircle2 } from 'lucide-react';
 import {
+  CheckCircle2,
   Briefcase,
   Database,
   Settings2,
   Brain,
   BarChart3,
   Rocket,
+  AlertTriangle,
 } from 'lucide-react';
 
 interface CrispDmStepperProps {
@@ -16,6 +17,7 @@ interface CrispDmStepperProps {
   currentPhase: CrispDmPhaseId;
   onPhaseClick: (phaseId: CrispDmPhaseId) => void;
   orientation?: 'horizontal' | 'vertical';
+  phaseWarnings?: Partial<Record<CrispDmPhaseId, string>>;
 }
 
 const phaseIcons: Record<CrispDmPhaseId, typeof Briefcase> = {
@@ -32,6 +34,7 @@ export function CrispDmStepper({
   currentPhase,
   onPhaseClick,
   orientation = 'horizontal',
+  phaseWarnings,
 }: CrispDmStepperProps) {
   const isVertical = orientation === 'vertical';
   const activeIndex = phases.findIndex((p) => p.id === currentPhase);
@@ -106,6 +109,9 @@ export function CrispDmStepper({
         const isLast = index === phases.length - 1;
         const isPast = index < activeIndex;
 
+        const warning = phaseWarnings?.[phase.id];
+        const hasWarning = !!warning && !isCompleted;
+
         return (
           <div
             key={phase.id}
@@ -137,17 +143,21 @@ export function CrispDmStepper({
             <button
               onClick={() => onPhaseClick(phase.id)}
               className="relative z-10 flex flex-col items-center gap-2 group"
+              title={hasWarning ? warning : undefined}
             >
               <div
                 className={cn(
                   'w-14 h-14 rounded-full flex items-center justify-center border-2 transition-all',
                   isActive && 'bg-primary border-primary text-primary-foreground shadow-md shadow-primary/25',
                   !isActive && isCompleted && 'bg-orange-50 border-primary text-primary',
-                  !isActive && !isCompleted && 'bg-background border-muted-foreground/25 text-muted-foreground group-hover:border-primary/50'
+                  !isActive && !isCompleted && hasWarning && 'bg-background border-amber-400 text-amber-600 ring-2 ring-amber-200 group-hover:border-amber-500',
+                  !isActive && !isCompleted && !hasWarning && 'bg-background border-muted-foreground/25 text-muted-foreground group-hover:border-primary/50'
                 )}
               >
                 {isCompleted && !isActive ? (
                   <CheckCircle2 className="h-6 w-6" />
+                ) : hasWarning && !isActive ? (
+                  <AlertTriangle className="h-5 w-5" />
                 ) : (
                   <Icon className="h-6 w-6" />
                 )}
@@ -157,7 +167,8 @@ export function CrispDmStepper({
                   'text-[13px] font-medium whitespace-nowrap transition-colors',
                   isActive && 'text-primary font-semibold',
                   !isActive && isCompleted && 'text-primary',
-                  !isActive && !isCompleted && 'text-muted-foreground'
+                  !isActive && !isCompleted && hasWarning && 'text-amber-600',
+                  !isActive && !isCompleted && !hasWarning && 'text-muted-foreground'
                 )}
               >
                 {phase.shortName}

@@ -162,6 +162,66 @@ ${DataAnalyzer.ANALYSIS_CODE}
     return result;
   }
 
+  /**
+   * Re-analyze an already-loaded DataFrame in the Pyodide worker.
+   * Uses df_original (set by DataPreparator) with fallback to df.
+   * Useful when the user navigates back to DataUnderstanding after leaving.
+   */
+  static async analyzeExistingDataFrame(): Promise<DataAnalysisResult> {
+    const manager = PyodideManager.getInstance();
+    const state = manager.getState();
+
+    if (!state.isReady) {
+      throw new Error(
+        'Pyodide ist nicht initialisiert. Bitte zuerst die ML-Engine starten.',
+      );
+    }
+
+    const code = DataAnalyzer.buildAnalyzeExistingDfCode();
+    const execResult = await manager.runPython(code);
+
+    if (!execResult.success) {
+      throw new Error(
+        `Analyse fehlgeschlagen: ${execResult.error ?? 'Unbekannter Fehler'}`,
+      );
+    }
+
+    return DataAnalyzer.parseResult(execResult.result);
+  }
+
+  /**
+   * Build Python code that re-analyzes an existing DataFrame in the worker.
+   * @internal Exposed for testing.
+   */
+  static buildAnalyzeExistingDfCode(): string {
+    return `
+import pandas as pd
+import json
+
+# Use df_original if available (set by DataPreparator), otherwise fall back to df
+if 'df_original' in dir():
+    _analysis_df = df_original.copy()
+elif 'df' in dir():
+    _analysis_df = df.copy()
+else:
+    raise NameError("Kein DataFrame gefunden. Bitte Daten erneut laden.")
+
+# Temporarily assign to df for shared analysis code
+_saved_df = df.copy() if 'df' in dir() else None
+df = _analysis_df
+
+${DataAnalyzer.ANALYSIS_CODE}
+
+# Restore original df state
+if _saved_df is not None:
+    df = _saved_df
+else:
+    del df
+del _analysis_df, _saved_df
+result
+`.trim();
+  }
+
   /** Shared Python analysis code (appended to both CSV and DataFrame variants) */
   private static readonly ANALYSIS_CODE = `
 columns_info = []
@@ -198,7 +258,7 @@ if len(numeric_cols) > 1:
     corr_df = df[numeric_cols].corr()
     corr = json.loads(corr_df.to_json())
 
-preview = json.loads(df.head(10).to_json(orient="records"))
+preview = json.loads(df.head(2000).to_json(orient="records"))
 
 result = {
     "rowCount": len(df),
