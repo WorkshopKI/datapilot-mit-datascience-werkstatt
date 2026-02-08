@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/table';
 import {
   Settings2, Plus, Trash2, Play, Loader2, AlertTriangle,
-  Info, Code, Eye, ListOrdered, AlertCircle,
+  Info, Code, Eye, ListOrdered, AlertCircle, BookOpen,
 } from 'lucide-react';
 import { GlossaryLink } from '../GlossaryLink';
 import { DataPreparator } from '@/engine/data/DataPreparator';
@@ -182,6 +182,7 @@ export function DataPreparation({ project, onUpdateProject }: DataPreparationPro
           </CardHeader>
         </Card>
         <GlossaryTermsCard />
+        <LernbereichLink />
       </div>
     );
   }
@@ -268,6 +269,23 @@ export function DataPreparation({ project, onUpdateProject }: DataPreparationPro
           </CardContent>
         </Card>
       )}
+
+      {/* Didaktischer Einstieg */}
+      <div className="bg-orange-50 border border-orange-200 rounded-xl p-4">
+        <div className="flex gap-3">
+          <Info className="h-5 w-5 text-orange-500 shrink-0 mt-0.5" />
+          <div className="text-sm">
+            <p className="font-medium text-orange-800 mb-1">Was passiert in dieser Phase?</p>
+            <p className="text-orange-700">
+              In der Data Preparation bereitest du deine Daten für das Modelltraining vor:{' '}
+              <GlossaryLink term="Fehlende Werte" termId="fehlende-werte">Fehlende Werte</GlossaryLink>{' '}
+              behandeln,{' '}
+              <GlossaryLink term="Ausreißer" termId="ausreisser">Ausreißer</GlossaryLink>{' '}
+              entfernen, kategoriale Spalten kodieren und Features skalieren.
+            </p>
+          </div>
+        </div>
+      </div>
 
       {/* Error banner */}
       {errorMessage && viewState === 'ready' && (
@@ -402,6 +420,7 @@ export function DataPreparation({ project, onUpdateProject }: DataPreparationPro
             </div>
 
             <GlossaryTermsCard />
+            <LernbereichLink />
           </div>
         </TabsContent>
 
@@ -472,7 +491,7 @@ export function DataPreparation({ project, onUpdateProject }: DataPreparationPro
                   <p className="text-sm text-muted-foreground">
                     Dieser Code zeigt, was die Pipeline-Schritte in Python tun – ideal zum Lernen!
                   </p>
-                  <pre className="bg-gray-900 text-gray-100 rounded-lg p-4 overflow-x-auto text-sm font-mono whitespace-pre-wrap">
+                  <pre className="bg-muted rounded-lg p-4 overflow-x-auto text-sm font-mono whitespace-pre-wrap">
                     <code>
                       {`import pandas as pd\nfrom sklearn.preprocessing import StandardScaler, MinMaxScaler, LabelEncoder\nfrom sklearn.model_selection import train_test_split\n\n# Daten laden (df ist bereits vorhanden)\n`}
                       {pipelineSteps.map((step, i) => (
@@ -956,9 +975,12 @@ function ColumnCheckboxes({ label, columns, selected, onChange }: {
 
 function GlossaryTermsCard() {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">Relevante Begriffe für diese Phase</CardTitle>
+    <Card className="bg-muted/30">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base flex items-center gap-2">
+          <BookOpen className="h-4 w-4" />
+          Relevante Begriffe
+        </CardTitle>
       </CardHeader>
       <CardContent>
         <div className="flex flex-wrap gap-2">
@@ -972,6 +994,18 @@ function GlossaryTermsCard() {
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+function LernbereichLink() {
+  return (
+    <a
+      href="/lernen/grundlagen#crisp-dm"
+      className="text-sm text-primary hover:underline flex items-center gap-1"
+    >
+      <BookOpen className="h-3.5 w-3.5" />
+      Mehr zu dieser Phase im Lernbereich →
+    </a>
   );
 }
 
