@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/select';
 import {
   Brain, Loader2, AlertTriangle, Play, Trash2,
-  Info, AlertCircle, Settings2, Clock, CheckCircle2,
+  Info, AlertCircle, Settings2, Clock, CheckCircle2, BookOpen,
 } from 'lucide-react';
 import { GlossaryLink } from '../GlossaryLink';
 import { ModelTrainer } from '@/engine/modeling/ModelTrainer';
@@ -151,7 +151,7 @@ export function Modeling({ project, onUpdateProject }: ModelingProps) {
   const hyperparamDefs = selectedAlgorithm ? ModelTrainer.getDefaultHyperparameters(selectedAlgorithm) : [];
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {/* Error banner */}
       {errorMessage && viewState === 'ready' && (
         <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-start gap-2">
@@ -308,6 +308,15 @@ export function Modeling({ project, onUpdateProject }: ModelingProps) {
 
       <GlossaryTermsCard />
 
+      {/* Lernbereich-Link (Pattern 12) */}
+      <a
+        href="/lernen/grundlagen#crisp-dm"
+        className="text-sm text-primary hover:underline flex items-center gap-1"
+      >
+        <BookOpen className="h-3.5 w-3.5" />
+        Mehr zu dieser Phase im Lernbereich →
+      </a>
+
       {/* Training overlay */}
       {isTraining && (
         <div className="fixed inset-0 bg-black/10 flex items-center justify-center z-50">
@@ -414,9 +423,12 @@ function TrainedModelCard({ model, projectType, isSelected, onRemove, disabled }
 
 function GlossaryTermsCard() {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">Relevante Begriffe für diese Phase</CardTitle>
+    <Card className="bg-muted/30">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base flex items-center gap-2">
+          <BookOpen className="h-4 w-4" />
+          Relevante Begriffe
+        </CardTitle>
       </CardHeader>
       <CardContent>
         <div className="flex flex-wrap gap-2">
