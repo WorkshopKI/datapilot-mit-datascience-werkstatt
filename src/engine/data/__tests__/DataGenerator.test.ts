@@ -301,12 +301,11 @@ describe('DataGenerator', () => {
       const code = DataGenerator.buildPythonCode(config);
 
       expect(code).not.toContain('make_classification');
-      expect(code).toContain('survival_prob');
-      expect(code).toContain("np.random.choice(['male', 'female']");
-      expect(code).toContain("np.random.choice(['S', 'C', 'Q']");
-      expect(code).toContain('n = 891');
-      expect(code).not.toContain('random_state=');
-      expect(code).toContain('np.random.seed(42)');
+      expect(code).toContain('open_url');
+      expect(code).toContain('/data/titanic.csv');
+      expect(code).toContain('pd.read_csv');
+      expect(code).toContain('df.head(891)');
+      expect(code).toContain('random_state=42');
     });
 
     it('generates Titanic code when features contain Survived', () => {
@@ -318,7 +317,7 @@ describe('DataGenerator', () => {
       });
       const code = DataGenerator.buildPythonCode(config);
 
-      expect(code).toContain('survival_prob');
+      expect(code).toContain('open_url');
       expect(code).not.toContain('make_classification');
     });
 
@@ -332,7 +331,7 @@ describe('DataGenerator', () => {
       });
       const code = DataGenerator.buildPythonCode(config);
 
-      expect(code).toContain('survival_prob');
+      expect(code).toContain('open_url');
     });
 
     it('generates Iris-specific code when features contain Sepal', () => {
@@ -377,7 +376,7 @@ describe('DataGenerator', () => {
       const code = DataGenerator.buildPythonCode(config);
 
       expect(code).toContain('make_classification');
-      expect(code).not.toContain('survival_prob');
+      expect(code).not.toContain('open_url');
       expect(code).not.toContain('load_iris');
     });
 
@@ -391,7 +390,7 @@ describe('DataGenerator', () => {
       });
       const code = DataGenerator.buildPythonCode(config);
 
-      expect(code).toContain('np.random.seed(99)');
+      expect(code).toContain('random_state=99');
     });
 
     it('uses custom seed for Iris code', () => {

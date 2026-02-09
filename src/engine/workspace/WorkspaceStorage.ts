@@ -27,7 +27,7 @@ const EXAMPLE_PROJECTS: WorkspaceProject[] = [
     features: [
       { id: 'f1', name: 'Pclass', type: 'kategorial', description: 'Passagierklasse (1 = Erste, 2 = Zweite, 3 = Dritte)' },
       { id: 'f2', name: 'Sex', type: 'kategorial', description: 'Geschlecht (male/female)' },
-      { id: 'f3', name: 'Age', type: 'numerisch', description: 'Alter in Jahren (Achtung: teilweise fehlende Werte!)' },
+      { id: 'f3', name: 'Age', type: 'numerisch', description: 'Alter in Jahren (Achtung: ~20% fehlende Werte!)' },
       { id: 'f4', name: 'SibSp', type: 'numerisch', description: 'Anzahl Geschwister oder Ehepartner an Bord' },
       { id: 'f5', name: 'Parch', type: 'numerisch', description: 'Anzahl Eltern oder Kinder an Bord' },
       { id: 'f6', name: 'Fare', type: 'numerisch', description: 'Ticketpreis in britischen Pfund' },
