@@ -51,7 +51,14 @@ export class DataGenerator {
       );
     }
 
-    const code = DataGenerator.buildPythonCode(config);
+    // Prefetch Titanic CSV on main thread (open_url is blocked in module workers)
+    let titanicCsv: string | undefined;
+    if (config.type === 'klassifikation' && DataGenerator.isTitanicProject(config.features)) {
+      const response = await fetch('/data/titanic.csv');
+      titanicCsv = await response.text();
+    }
+
+    const code = DataGenerator.buildPythonCode(config, titanicCsv);
     const execResult = await manager.runPython(code);
 
     if (!execResult.success) {
@@ -70,17 +77,20 @@ export class DataGenerator {
       throw new Error('Unerwartetes Ergebnis der Datengenerierung');
     }
 
-    const descriptions: Record<ProjectType, string> = {
-      klassifikation: `Synthetischer Klassifikations-Datensatz mit ${result.rowCount} Zeilen`,
-      regression: `Synthetischer Regressions-Datensatz mit ${result.rowCount} Zeilen`,
-      clustering: `Synthetischer Clustering-Datensatz mit ${result.rowCount} Zeilen`,
-    };
+    const realLabel = DataGenerator.getRealDatasetLabel(config.features);
+    const description = realLabel
+      ? `${realLabel} mit ${result.rowCount} Zeilen`
+      : {
+          klassifikation: `Synthetischer Klassifikations-Datensatz mit ${result.rowCount} Zeilen`,
+          regression: `Synthetischer Regressions-Datensatz mit ${result.rowCount} Zeilen`,
+          clustering: `Synthetischer Clustering-Datensatz mit ${result.rowCount} Zeilen`,
+        }[config.type];
 
     return {
       columns: result.columns,
       rows: result.rows,
       rowCount: result.rowCount,
-      description: descriptions[config.type],
+      description: description ?? `Datensatz mit ${result.rowCount} Zeilen`,
     };
   }
 
@@ -88,13 +98,13 @@ export class DataGenerator {
    * Build the Python code string for data generation based on config.
    * @internal Exposed for testing.
    */
-  static buildPythonCode(config: DataGeneratorConfig): string {
+  static buildPythonCode(config: DataGeneratorConfig, titanicCsv?: string): string {
     const seed = config.randomSeed ?? 42;
     const noise = config.noiseFactor ?? 0.1;
 
     switch (config.type) {
       case 'klassifikation':
-        return DataGenerator.buildClassificationCode(config, seed, noise);
+        return DataGenerator.buildClassificationCode(config, seed, noise, titanicCsv);
       case 'regression':
         return DataGenerator.buildRegressionCode(config, seed, noise);
       case 'clustering':
@@ -141,6 +151,18 @@ export class DataGenerator {
     }
   }
 
+  /** Checks whether the features match a real dataset (Titanic/Iris). */
+  static hasRealDataset(features: Feature[]): boolean {
+    return DataGenerator.isTitanicProject(features) || DataGenerator.isIrisProject(features);
+  }
+
+  /** Returns a human-readable label, or undefined for generic projects. */
+  static getRealDatasetLabel(features: Feature[]): string | undefined {
+    if (DataGenerator.isTitanicProject(features)) return 'Titanic-Datensatz (echte Daten)';
+    if (DataGenerator.isIrisProject(features)) return 'Iris-Datensatz (echte Daten)';
+    return undefined;
+  }
+
   // --- Private code builders ---
 
   private static getFeatureNames(features: Feature[], excludeTarget: boolean): string[] {
@@ -176,16 +198,20 @@ export class DataGenerator {
     return names.some(n => n.includes('Sepal') || n.includes('Petal'));
   }
 
-  private static buildTitanicCode(config: DataGeneratorConfig, seed: number): string {
+  private static buildTitanicCode(config: DataGeneratorConfig, seed: number, csvContent?: string): string {
     const rowCount = config.rowCount || 891;
+    // Escape backslashes and triple-quotes in CSV content (same pattern as DataAnalyzer)
+    const escaped = (csvContent ?? '')
+      .replace(/\\/g, '\\\\')
+      .replace(/"""/g, '\\"\\"\\"');
+
     return `
 import pandas as pd
 from io import StringIO
-from pyodide.http import open_url
 import json
 
-csv_text = open_url('/data/titanic.csv').read()
-df = pd.read_csv(StringIO(csv_text))
+csv_data = """${escaped}"""
+df = pd.read_csv(StringIO(csv_data))
 
 # Shuffle für Varianz
 df = df.sample(frac=1, random_state=${seed}).reset_index(drop=True)
@@ -227,10 +253,11 @@ result
     config: DataGeneratorConfig,
     seed: number,
     noise: number,
+    titanicCsv?: string,
   ): string {
     // Route to specialized builders for known datasets
     if (DataGenerator.isTitanicProject(config.features)) {
-      return DataGenerator.buildTitanicCode(config, seed);
+      return DataGenerator.buildTitanicCode(config, seed, titanicCsv);
     }
     if (DataGenerator.isIrisProject(config.features)) {
       return DataGenerator.buildIrisCode(config, seed);

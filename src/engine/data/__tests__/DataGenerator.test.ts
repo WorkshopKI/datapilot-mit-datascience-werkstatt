@@ -298,12 +298,14 @@ describe('DataGenerator', () => {
           { id: 'f8', name: 'Survived', type: 'kategorial', description: '', isTarget: true },
         ],
       });
-      const code = DataGenerator.buildPythonCode(config);
+      // Pass a dummy CSV string (in generate(), this comes from fetch on main thread)
+      const dummyCsv = 'PassengerId,Survived,Pclass\n1,0,3\n2,1,1';
+      const code = DataGenerator.buildPythonCode(config, dummyCsv);
 
       expect(code).not.toContain('make_classification');
-      expect(code).toContain('open_url');
-      expect(code).toContain('/data/titanic.csv');
-      expect(code).toContain('pd.read_csv');
+      expect(code).not.toContain('open_url');
+      expect(code).toContain('csv_data = """');
+      expect(code).toContain('pd.read_csv(StringIO(csv_data))');
       expect(code).toContain('df.head(891)');
       expect(code).toContain('random_state=42');
     });
@@ -315,10 +317,11 @@ describe('DataGenerator', () => {
           { id: 'f2', name: 'Survived', type: 'kategorial', description: '', isTarget: true },
         ],
       });
-      const code = DataGenerator.buildPythonCode(config);
+      const code = DataGenerator.buildPythonCode(config, 'col1\nval1');
 
-      expect(code).toContain('open_url');
+      expect(code).toContain('csv_data = """');
       expect(code).not.toContain('make_classification');
+      expect(code).not.toContain('open_url');
     });
 
     it('generates Titanic code when features contain Embarked', () => {
@@ -329,9 +332,10 @@ describe('DataGenerator', () => {
           { id: 'f3', name: 'Target', type: 'kategorial', description: '', isTarget: true },
         ],
       });
-      const code = DataGenerator.buildPythonCode(config);
+      const code = DataGenerator.buildPythonCode(config, 'col1\nval1');
 
-      expect(code).toContain('open_url');
+      expect(code).toContain('csv_data = """');
+      expect(code).not.toContain('open_url');
     });
 
     it('generates Iris-specific code when features contain Sepal', () => {
@@ -376,7 +380,7 @@ describe('DataGenerator', () => {
       const code = DataGenerator.buildPythonCode(config);
 
       expect(code).toContain('make_classification');
-      expect(code).not.toContain('open_url');
+      expect(code).not.toContain('csv_data = """');
       expect(code).not.toContain('load_iris');
     });
 
@@ -388,7 +392,7 @@ describe('DataGenerator', () => {
           { id: 'f2', name: 'Survived', type: 'kategorial', description: '', isTarget: true },
         ],
       });
-      const code = DataGenerator.buildPythonCode(config);
+      const code = DataGenerator.buildPythonCode(config, 'col1\nval1');
 
       expect(code).toContain('random_state=99');
     });
@@ -522,6 +526,41 @@ describe('DataGenerator', () => {
         'Unerwartetes Ergebnis',
       );
     });
+
+    it('fetches Titanic CSV on main thread and embeds it in Python code', async () => {
+      mockPyodideReady();
+      const fakeCsv = 'PassengerId,Survived,Pclass\n1,0,3\n2,1,1';
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+        text: () => Promise.resolve(fakeCsv),
+      }));
+
+      mockRunPythonSuccess({
+        columns: ['PassengerId', 'Survived', 'Pclass'],
+        rows: [{ PassengerId: 1, Survived: 0, Pclass: 3 }],
+        rowCount: 1,
+      });
+
+      const config = makeConfig({
+        type: 'klassifikation',
+        features: [
+          { id: 'f1', name: 'Pclass', type: 'kategorial', description: '' },
+          { id: 'f2', name: 'Survived', type: 'kategorial', description: '', isTarget: true },
+        ],
+      });
+
+      await DataGenerator.generate(config);
+
+      // Verify fetch was called for the CSV
+      expect(fetch).toHaveBeenCalledWith('/data/titanic.csv');
+
+      // Verify the Python code embeds the CSV, not open_url
+      const code = mockRunPython.mock.calls[0][0] as string;
+      expect(code).toContain('csv_data = """');
+      expect(code).toContain('PassengerId,Survived,Pclass');
+      expect(code).not.toContain('open_url');
+
+      vi.unstubAllGlobals();
+    });
   });
 
   // ===========================================
@@ -556,6 +595,132 @@ describe('DataGenerator', () => {
       expect(result.columns).toEqual([]);
       expect(result.rows).toEqual([]);
       expect(result.rowCount).toBe(0);
+    });
+  });
+
+  // ===========================================
+  // hasRealDataset tests
+  // ===========================================
+
+  describe('hasRealDataset', () => {
+    it('returns true for Titanic features', () => {
+      const features = [
+        { id: 'f1', name: 'Pclass', type: 'kategorial' as const, description: '' },
+        { id: 'f2', name: 'Age', type: 'numerisch' as const, description: '' },
+        { id: 'f3', name: 'Survived', type: 'kategorial' as const, description: '', isTarget: true },
+      ];
+      expect(DataGenerator.hasRealDataset(features)).toBe(true);
+    });
+
+    it('returns true for Iris features', () => {
+      const features = [
+        { id: 'f1', name: 'SepalLength', type: 'numerisch' as const, description: '' },
+        { id: 'f2', name: 'PetalWidth', type: 'numerisch' as const, description: '' },
+        { id: 'f3', name: 'Species', type: 'kategorial' as const, description: '', isTarget: true },
+      ];
+      expect(DataGenerator.hasRealDataset(features)).toBe(true);
+    });
+
+    it('returns false for generic features', () => {
+      const features = makeFeatures(['Alter', 'Gehalt', 'Erfahrung'], 'Churn');
+      expect(DataGenerator.hasRealDataset(features)).toBe(false);
+    });
+  });
+
+  // ===========================================
+  // getRealDatasetLabel tests
+  // ===========================================
+
+  describe('getRealDatasetLabel', () => {
+    it('returns Titanic label for Titanic features', () => {
+      const features = [
+        { id: 'f1', name: 'Pclass', type: 'kategorial' as const, description: '' },
+        { id: 'f2', name: 'Survived', type: 'kategorial' as const, description: '', isTarget: true },
+      ];
+      expect(DataGenerator.getRealDatasetLabel(features)).toBe('Titanic-Datensatz (echte Daten)');
+    });
+
+    it('returns Iris label for Iris features', () => {
+      const features = [
+        { id: 'f1', name: 'SepalLength', type: 'numerisch' as const, description: '' },
+        { id: 'f2', name: 'Species', type: 'kategorial' as const, description: '', isTarget: true },
+      ];
+      expect(DataGenerator.getRealDatasetLabel(features)).toBe('Iris-Datensatz (echte Daten)');
+    });
+
+    it('returns undefined for generic features', () => {
+      const features = makeFeatures(['Alter', 'Gehalt'], 'Churn');
+      expect(DataGenerator.getRealDatasetLabel(features)).toBeUndefined();
+    });
+  });
+
+  // ===========================================
+  // generate() description for real datasets
+  // ===========================================
+
+  describe('generate description for real datasets', () => {
+    it('returns real dataset description for Titanic features', async () => {
+      mockPyodideReady();
+      const fakeCsv = 'PassengerId,Survived,Pclass\n1,0,3\n2,1,1';
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+        text: () => Promise.resolve(fakeCsv),
+      }));
+      mockRunPythonSuccess({
+        columns: ['PassengerId', 'Survived', 'Pclass'],
+        rows: [{ PassengerId: 1, Survived: 0, Pclass: 3 }],
+        rowCount: 891,
+      });
+
+      const config = makeConfig({
+        type: 'klassifikation',
+        features: [
+          { id: 'f1', name: 'Pclass', type: 'kategorial', description: '' },
+          { id: 'f2', name: 'Survived', type: 'kategorial', description: '', isTarget: true },
+        ],
+      });
+
+      const result = await DataGenerator.generate(config);
+      expect(result.description).toContain('Titanic-Datensatz (echte Daten)');
+      expect(result.description).toContain('891 Zeilen');
+
+      vi.unstubAllGlobals();
+    });
+
+    it('returns real dataset description for Iris features', async () => {
+      mockPyodideReady();
+      mockRunPythonSuccess({
+        columns: ['SepalLength', 'SepalWidth', 'PetalLength', 'PetalWidth', 'Species'],
+        rows: [{ SepalLength: 5.1, SepalWidth: 3.5, PetalLength: 1.4, PetalWidth: 0.2, Species: 'setosa' }],
+        rowCount: 150,
+      });
+
+      const config = makeConfig({
+        type: 'klassifikation',
+        features: [
+          { id: 'f1', name: 'SepalLength', type: 'numerisch', description: '' },
+          { id: 'f2', name: 'SepalWidth', type: 'numerisch', description: '' },
+          { id: 'f3', name: 'PetalLength', type: 'numerisch', description: '' },
+          { id: 'f4', name: 'PetalWidth', type: 'numerisch', description: '' },
+          { id: 'f5', name: 'Species', type: 'kategorial', description: '', isTarget: true },
+        ],
+      });
+
+      const result = await DataGenerator.generate(config);
+      expect(result.description).toContain('Iris-Datensatz (echte Daten)');
+      expect(result.description).toContain('150 Zeilen');
+    });
+
+    it('returns synthetic description for generic features', async () => {
+      mockPyodideReady();
+      mockRunPythonSuccess({
+        columns: ['Alter', 'Gehalt', 'Erfahrung', 'Churn'],
+        rows: [{ Alter: 1, Gehalt: 2, Erfahrung: 3, Churn: 0 }],
+        rowCount: 100,
+      });
+
+      const result = await DataGenerator.generate(makeConfig());
+      expect(result.description).toContain('Synthetischer Klassifikations-Datensatz');
+      expect(result.description).not.toContain('echte Daten');
     });
   });
 });

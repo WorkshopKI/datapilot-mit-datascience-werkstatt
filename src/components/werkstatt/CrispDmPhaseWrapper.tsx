@@ -1,12 +1,12 @@
 // CRISP-DM Phase Wrapper - Container with tutor hints
 import { ReactNode } from 'react';
 import { PhaseGuidance, TutorHint } from '@/engine/tutor/TutorService';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { GlossaryLink } from './GlossaryLink';
 import {
-  Lightbulb, AlertTriangle, Info, ChevronRight, Target,
+  Lightbulb, AlertTriangle, Info,
   Briefcase, Database, Settings2, Brain, BarChart3, Rocket,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -63,44 +63,17 @@ export function CrispDmPhaseWrapper({
           const meta = PHASE_META[guidance.phaseId];
           const PhaseIcon = meta?.icon ?? Info;
           return (
-            <div>
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-primary/10 text-primary">
-                  <PhaseIcon className="h-5 w-5" />
-                </div>
-                <div>
-                  <span className="text-sm text-muted-foreground">
-                    Phase {meta?.num} · {meta?.en}
-                  </span>
-                  <h2 className="text-lg font-semibold">{meta?.de}</h2>
-                </div>
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                <PhaseIcon className="h-5 w-5" />
               </div>
-              <p className="text-muted-foreground mt-2">{guidance.introduction}</p>
+              <h2 className="text-lg font-semibold">
+                <span className="text-muted-foreground font-normal">Phase {meta?.num} · </span>
+                {meta?.de}
+              </h2>
             </div>
           );
         })()}
-
-        {/* Objectives */}
-        <Card className="bg-gradient-to-r from-orange-50/50 to-transparent border-orange-100">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Target className="h-4 w-4 text-primary" />
-              Ziele dieser Phase
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ul className="space-y-2">
-              {guidance.objectives.map((objective, index) => (
-                <li key={index} className="flex items-start gap-2 text-sm">
-                  <Badge variant="outline" className="h-5 w-5 p-0 justify-center shrink-0 text-xs">
-                    {index + 1}
-                  </Badge>
-                  <span>{objective}</span>
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
 
         {/* Phase Content */}
         {children}

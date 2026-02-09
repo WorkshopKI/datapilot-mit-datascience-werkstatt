@@ -53,12 +53,21 @@ export function DataUnderstanding({ project, onUpdateProject }: DataUnderstandin
 
   const showSyntheticHint = isExampleProject(project.id) || project.hasDemoData;
 
+  // Detect real dataset (Titanic/Iris) for auto-load
+  const hasRealDataset = useMemo(
+    () => isExampleProject(project.id) && DataGenerator.hasRealDataset(project.features),
+    [project.id, project.features]
+  );
+  const autoLoadAttempted = useRef(false);
+
   // Determine current view state
   const viewState: ViewState = (() => {
     if (analysisError) return 'error';
     if (analysisResult) return 'ready';
     if (isAnalyzing) return 'analyzing';
     if (isLoading) return 'loading-pyodide';
+    // Auto-load projects: show loading immediately, no "no-data" flash
+    if (hasRealDataset && !project.dataSource && !autoLoadAttempted.current) return 'loading-pyodide';
     return 'no-data';
   })();
 
@@ -97,6 +106,48 @@ export function DataUnderstanding({ project, onUpdateProject }: DataUnderstandin
     }
   }, [project.dataSource, analysisResult, isAnalyzing, analysisError, ensurePyodide]);
 
+  // Auto-load real datasets (Titanic/Iris) on first visit
+  useEffect(() => {
+    if (
+      hasRealDataset &&
+      !project.dataSource &&
+      !analysisResult &&
+      !isAnalyzing &&
+      !analysisError &&
+      !autoLoadAttempted.current
+    ) {
+      autoLoadAttempted.current = true;
+      const datasetLabel = DataGenerator.getRealDatasetLabel(project.features) ?? 'Kursdaten';
+      setDataSourceLabel(datasetLabel);
+      setIsAnalyzing(true);
+
+      const loadRealData = async () => {
+        try {
+          await ensurePyodide();
+          const generated = await DataGenerator.generate({
+            type: project.type,
+            rowCount: 99999,
+            features: project.features,
+            randomSeed: 42,
+          });
+          const result = await DataAnalyzer.analyzeDataFrame(generated.rows, generated.columns);
+          setAnalysisResult(result);
+          onUpdateProject({
+            dataSource: datasetLabel,
+            rowCount: result.rowCount,
+            hasDemoData: true,
+          });
+        } catch (err) {
+          setAnalysisError(err instanceof Error ? err.message : 'Unbekannter Fehler');
+        } finally {
+          setIsAnalyzing(false);
+        }
+      };
+      loadRealData();
+    }
+  }, [hasRealDataset, project.dataSource, project.type, project.features,
+      analysisResult, isAnalyzing, analysisError, ensurePyodide, onUpdateProject]);
+
   const handleCSVImport = useCallback(async (file: File) => {
     setAnalysisError(null);
     setIsAnalyzing(true);
@@ -121,21 +172,22 @@ export function DataUnderstanding({ project, onUpdateProject }: DataUnderstandin
   const handleSyntheticData = useCallback(async () => {
     setAnalysisError(null);
     setIsAnalyzing(true);
-    setDataSourceLabel('Synthetische Daten');
+    const datasetLabel = DataGenerator.getRealDatasetLabel(project.features) ?? 'Synthetische Daten';
+    setDataSourceLabel(datasetLabel);
 
     try {
       await ensurePyodide();
       const generated = await DataGenerator.generate({
         type: project.type,
-        rowCount: genRowCount,
+        rowCount: hasRealDataset ? 99999 : genRowCount,
         features: project.features,
-        noiseFactor: genNoiseFactor,
+        noiseFactor: hasRealDataset ? undefined : genNoiseFactor,
         randomSeed: 42,
       });
       const result = await DataAnalyzer.analyzeDataFrame(generated.rows, generated.columns);
       setAnalysisResult(result);
       onUpdateProject({
-        dataSource: 'Synthetische Daten',
+        dataSource: datasetLabel,
         rowCount: result.rowCount,
         hasDemoData: true,
       });
@@ -144,7 +196,7 @@ export function DataUnderstanding({ project, onUpdateProject }: DataUnderstandin
     } finally {
       setIsAnalyzing(false);
     }
-  }, [ensurePyodide, project.type, project.features, onUpdateProject, genRowCount, genNoiseFactor]);
+  }, [ensurePyodide, project.type, project.features, onUpdateProject, genRowCount, genNoiseFactor, hasRealDataset]);
 
   const handleReset = useCallback(() => {
     setAnalysisResult(null);
@@ -176,7 +228,19 @@ export function DataUnderstanding({ project, onUpdateProject }: DataUnderstandin
         </div>
 
         {/* Empfehlung für Beispielprojekte */}
-        {showSyntheticHint && (
+        {hasRealDataset ? (
+          <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+            <div className="flex gap-3">
+              <Database className="h-5 w-5 text-green-600 shrink-0 mt-0.5" />
+              <div className="text-sm">
+                <p className="font-medium text-green-800 mb-1">Echte Daten verfügbar</p>
+                <p className="text-green-700">
+                  Für dieses Kursprojekt stehen echte Daten bereit ({DataGenerator.getRealDatasetLabel(project.features)}). Klicke auf „Daten laden", um sie direkt zu analysieren.
+                </p>
+              </div>
+            </div>
+          </div>
+        ) : showSyntheticHint ? (
           <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
             <div className="flex gap-3">
               <FlaskConical className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
@@ -188,7 +252,7 @@ export function DataUnderstanding({ project, onUpdateProject }: DataUnderstandin
               </div>
             </div>
           </div>
-        )}
+        ) : null}
 
         {/* Zwei Optionen */}
         <div className="grid md:grid-cols-2 gap-4">
@@ -214,87 +278,119 @@ export function DataUnderstanding({ project, onUpdateProject }: DataUnderstandin
             </CardContent>
           </Card>
 
-          {/* Synthetische Daten */}
-          <Card className={`hover:shadow-md transition-all ${showSyntheticHint ? 'border-primary border-2' : 'hover:border-orange-200'}`}>
-            <CardHeader className="pb-3">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-orange-50">
-                  <FlaskConical className="h-5 w-5 text-orange-500" />
-                </div>
-                <CardTitle className="text-base">Synthetische Daten generieren</CardTitle>
-                {showSyntheticHint && (
+          {/* Daten generieren / laden */}
+          {hasRealDataset ? (
+            <Card className="hover:shadow-md transition-all border-primary border-2">
+              <CardHeader className="pb-3">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-green-50">
+                    <Database className="h-5 w-5 text-green-600" />
+                  </div>
+                  <CardTitle className="text-base">Kursdaten laden</CardTitle>
                   <Badge className="bg-primary text-primary-foreground">Empfohlen</Badge>
-                )}
-              </div>
-              <p className="text-sm text-muted-foreground">
-                Erzeuge realistische Beispieldaten passend zu deinem Projekttyp – ideal zum Lernen und Ausprobieren.
-              </p>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center gap-2">
-                <Badge variant="secondary">{project.type}</Badge>
-                <span className="text-xs text-muted-foreground">{genRowCount} Zeilen</span>
-              </div>
-
-              {/* Konfiguration */}
-              <div className="bg-muted/50 rounded-lg p-3 space-y-4">
-                <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                  <SlidersHorizontal className="h-4 w-4" />
-                  Daten konfigurieren
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {DataGenerator.getRealDatasetLabel(project.features)} – echte Daten für den CRISP-DM-Zyklus.
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <Badge variant="secondary">{project.type}</Badge>
+                  <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                    Echte Daten
+                  </Badge>
+                </div>
+                <Button
+                  onClick={handleSyntheticData}
+                  className="w-full gap-2"
+                >
+                  <Database className="h-4 w-4" />
+                  Daten laden
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className={`hover:shadow-md transition-all ${showSyntheticHint ? 'border-primary border-2' : 'hover:border-orange-200'}`}>
+              <CardHeader className="pb-3">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-orange-50">
+                    <FlaskConical className="h-5 w-5 text-orange-500" />
+                  </div>
+                  <CardTitle className="text-base">Synthetische Daten generieren</CardTitle>
+                  {showSyntheticHint && (
+                    <Badge className="bg-primary text-primary-foreground">Empfohlen</Badge>
+                  )}
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Erzeuge realistische Beispieldaten passend zu deinem Projekttyp – ideal zum Lernen und Ausprobieren.
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <Badge variant="secondary">{project.type}</Badge>
+                  <span className="text-xs text-muted-foreground">{genRowCount} Zeilen</span>
                 </div>
 
-                {/* Anzahl Datensätze */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className="text-sm text-muted-foreground">Anzahl Datensätze</label>
-                    <Badge variant="outline">{genRowCount}</Badge>
+                {/* Konfiguration */}
+                <div className="bg-muted/50 rounded-lg p-3 space-y-4">
+                  <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                    <SlidersHorizontal className="h-4 w-4" />
+                    Daten konfigurieren
                   </div>
-                  <Slider
-                    value={[genRowCount]}
-                    onValueChange={([v]) => setGenRowCount(v)}
-                    min={100}
-                    max={2000}
-                    step={100}
-                  />
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>100</span>
-                    <span>2000</span>
+
+                  {/* Anzahl Datensätze */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-sm text-muted-foreground">Anzahl Datensätze</label>
+                      <Badge variant="outline">{genRowCount}</Badge>
+                    </div>
+                    <Slider
+                      value={[genRowCount]}
+                      onValueChange={([v]) => setGenRowCount(v)}
+                      min={100}
+                      max={2000}
+                      step={100}
+                    />
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>100</span>
+                      <span>2000</span>
+                    </div>
+                  </div>
+
+                  {/* Rauschfaktor */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-sm text-muted-foreground">Rauschfaktor</label>
+                      <Badge variant="outline">{genNoiseFactor.toFixed(2)}</Badge>
+                    </div>
+                    <Slider
+                      value={[genNoiseFactor * 100]}
+                      onValueChange={([v]) => setGenNoiseFactor(v / 100)}
+                      min={0}
+                      max={50}
+                      step={5}
+                    />
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>0.00</span>
+                      <span>0.50</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Info className="h-3 w-3 shrink-0" />
+                      Mehr Rauschen = schwierigere Daten für dein Modell
+                    </p>
                   </div>
                 </div>
 
-                {/* Rauschfaktor */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className="text-sm text-muted-foreground">Rauschfaktor</label>
-                    <Badge variant="outline">{genNoiseFactor.toFixed(2)}</Badge>
-                  </div>
-                  <Slider
-                    value={[genNoiseFactor * 100]}
-                    onValueChange={([v]) => setGenNoiseFactor(v / 100)}
-                    min={0}
-                    max={50}
-                    step={5}
-                  />
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>0.00</span>
-                    <span>0.50</span>
-                  </div>
-                  <p className="text-xs text-muted-foreground flex items-center gap-1">
-                    <Info className="h-3 w-3 shrink-0" />
-                    Mehr Rauschen = schwierigere Daten für dein Modell
-                  </p>
-                </div>
-              </div>
-
-              <Button
-                onClick={handleSyntheticData}
-                className="w-full gap-2"
-              >
-                <FlaskConical className="h-4 w-4" />
-                Daten generieren
-              </Button>
-            </CardContent>
-          </Card>
+                <Button
+                  onClick={handleSyntheticData}
+                  className="w-full gap-2"
+                >
+                  <FlaskConical className="h-4 w-4" />
+                  Daten generieren
+                </Button>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Relevante Begriffe inline */}
