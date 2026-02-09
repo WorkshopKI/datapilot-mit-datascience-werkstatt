@@ -64,13 +64,6 @@ const PHASE_GUIDANCE: Record<CrispDmPhaseId, PhaseGuidance> = {
         glossaryTerms: ['kpi', 'zielmetriken'],
         priority: 'tip',
       },
-      {
-        id: 'bu-2',
-        title: 'Stakeholder einbeziehen',
-        content: 'Sprich früh mit den Fachbereichen. Sie kennen die Daten und können helfen, relevante Features zu identifizieren.',
-        glossaryTerms: ['stakeholder', 'feature'],
-        priority: 'info',
-      },
     ],
     nextSteps: [
       'Projektziel dokumentieren',
@@ -94,34 +87,11 @@ const PHASE_GUIDANCE: Record<CrispDmPhaseId, PhaseGuidance> = {
         glossaryTerms: ['fehlende-werte', 'missing-values'],
         priority: 'warning',
       },
-      {
-        id: 'du-2',
-        title: 'Datentypen verstehen',
-        content: 'Numerische Features (z.B. Alter, Umsatz) verhalten sich anders als kategoriale (z.B. Geschlecht, Region). Prüfe, ob die Typen korrekt erkannt wurden.',
-        glossaryTerms: ['feature'],
-        priority: 'tip',
-      },
-      {
-        id: 'du-3',
-        title: 'Korrelationen prüfen',
-        content: 'Stark korrelierte Features können zu Multikollinearität führen. Entferne ggf. redundante Spalten in der nächsten Phase.',
-        glossaryTerms: ['korrelation'],
-        priority: 'info',
-      },
-      {
-        id: 'du-4',
-        title: 'Synthetische Daten zum Lernen',
-        content: 'Keine eigenen Daten? Kein Problem! Generiere synthetische Daten, um die Werkstatt kennenzulernen. Du kannst jederzeit echte Daten importieren.',
-        glossaryTerms: [],
-        priority: 'tip',
-      },
     ],
     nextSteps: [
       'Deskriptive Statistik erstellen',
-      'Visualisierungen für jede Variable',
       'Korrelationen untersuchen',
       'Auf fehlende Werte und Ausreißer achten',
-      'Datenqualität dokumentieren',
     ],
   },
   'data-preparation': {
