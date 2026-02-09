@@ -157,6 +157,7 @@ export interface PreparedDataSummary {
   columnNames: string[];
   numericColumns: string[];
   categoricalColumns: string[];
+  missingValueCount: number;
   trainRows?: number;
   testRows?: number;
   hasSplit: boolean;

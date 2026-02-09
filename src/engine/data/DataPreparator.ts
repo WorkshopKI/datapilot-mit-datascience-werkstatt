@@ -50,6 +50,7 @@ _result = {
         "columnNames": list(df.columns),
         "numericColumns": _numeric_cols,
         "categoricalColumns": _cat_cols,
+        "missingValueCount": int(df.isnull().sum().sum()),
         "trainRows": _train_rows,
         "testRows": _test_rows,
         "hasSplit": _has_split,
@@ -83,6 +84,7 @@ _result = {
     "columnNames": list(df.columns),
     "numericColumns": _numeric_cols,
     "categoricalColumns": _cat_cols,
+    "missingValueCount": int(df.isnull().sum().sum()),
     "trainRows": None,
     "testRows": None,
     "hasSplit": False,
@@ -119,7 +121,7 @@ _result
       return {
         success: false,
         summary: '',
-        dataSummary: { rowCount: 0, columnCount: 0, columnNames: [], numericColumns: [], categoricalColumns: [], hasSplit: false },
+        dataSummary: { rowCount: 0, columnCount: 0, columnNames: [], numericColumns: [], categoricalColumns: [], missingValueCount: 0, hasSplit: false },
         preview: [],
         error: execResult.error ?? 'Unbekannter Fehler',
       };
@@ -164,7 +166,7 @@ _result
       return {
         success: false,
         summary: '',
-        dataSummary: { rowCount: 0, columnCount: 0, columnNames: [], numericColumns: [], categoricalColumns: [], hasSplit: false },
+        dataSummary: { rowCount: 0, columnCount: 0, columnNames: [], numericColumns: [], categoricalColumns: [], missingValueCount: 0, hasSplit: false },
         preview: [],
         error: execResult.error ?? 'Unbekannter Fehler',
       };
@@ -195,6 +197,7 @@ _result = {
     "columnNames": list(df.columns),
     "numericColumns": _numeric_cols,
     "categoricalColumns": _cat_cols,
+    "missingValueCount": int(df.isnull().sum().sum()),
     "trainRows": len(df_train) if _has_split else None,
     "testRows": len(df_test) if _has_split else None,
     "hasSplit": _has_split,

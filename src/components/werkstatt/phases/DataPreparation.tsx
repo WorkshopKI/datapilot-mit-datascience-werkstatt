@@ -305,27 +305,11 @@ export function DataPreparation({ project, onUpdateProject }: DataPreparationPro
         </Card>
       )}
 
-      {/* Didaktischer Einstieg */}
-      <div className="bg-orange-50 border border-orange-200 rounded-xl p-4">
-        <div className="flex gap-3">
-          <Info className="h-5 w-5 text-orange-500 shrink-0 mt-0.5" />
-          <div className="text-sm">
-            <p className="font-medium text-orange-800 mb-1">Was passiert in dieser Phase?</p>
-            <p className="text-orange-700">
-              In der Data Preparation bereitest du deine Daten für das Modelltraining vor:{' '}
-              <GlossaryLink term="Fehlende Werte" termId="fehlende-werte">Fehlende Werte</GlossaryLink>{' '}
-              behandeln,{' '}
-              <GlossaryLink term="Ausreißer" termId="ausreisser">Ausreißer</GlossaryLink>{' '}
-              entfernen, kategoriale Spalten kodieren und Features skalieren.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Empfohlener Pfad */}
+      {/* Empfohlener Pfad – kompakter horizontaler Stepper */}
       <RecommendedPathCard
         projectType={project.type}
         appliedStepTypes={pipelineSteps.map(s => s.type)}
+        dataSummary={dataSummary}
       />
 
       {/* Error banner */}
@@ -461,27 +445,6 @@ export function DataPreparation({ project, onUpdateProject }: DataPreparationPro
                 )}
               </CardContent>
             </Card>
-
-            {/* Tutor tip */}
-            <div className="bg-orange-50 border border-orange-200 rounded-xl p-4">
-              <div className="flex gap-3">
-                <Info className="h-5 w-5 text-orange-500 shrink-0 mt-0.5" />
-                <div className="text-sm">
-                  <p className="font-medium text-orange-800 mb-1">Tipp: Data Preparation</p>
-                  <p className="text-orange-700">
-                    Beginne mit der Behandlung{' '}
-                    <GlossaryLink term="Fehlende Werte" termId="fehlende-werte">fehlender Werte</GlossaryLink>,
-                    entferne dann <GlossaryLink term="Ausreißer" termId="ausreisser">Ausreißer</GlossaryLink>.
-                    Danach kodiere kategoriale Spalten mit{' '}
-                    <GlossaryLink term="One-Hot Encoding" termId="one-hot-encoding">One-Hot Encoding</GlossaryLink>{' '}
-                    und skaliere numerische Features mit{' '}
-                    <GlossaryLink term="Normalisierung" termId="normalisierung">Normalisierung</GlossaryLink>.
-                    Der <GlossaryLink term="Train-Test-Split" termId="train-test-split">Train-Test-Split</GlossaryLink>{' '}
-                    sollte als letzter Schritt erfolgen.
-                  </p>
-                </div>
-              </div>
-            </div>
 
             <GlossaryTermsCard />
             <LernbereichLink />
@@ -1209,67 +1172,90 @@ function MethodCard<T extends string>({
   );
 }
 
+/** Short labels for the horizontal stepper */
+const SHORT_LABELS: Record<PipelineStepType, string> = {
+  'missing-values': 'Fehlende Werte',
+  'outlier-removal': 'Ausreißer',
+  'encoding': 'Encoding',
+  'scaling': 'Skalierung',
+  'feature-selection': 'Features',
+  'train-test-split': 'Split',
+};
+
 function RecommendedPathCard({
   projectType,
   appliedStepTypes,
+  dataSummary,
 }: {
   projectType: WorkspaceProject['type'];
   appliedStepTypes: PipelineStepType[];
+  dataSummary: PreparedDataSummary | null;
 }) {
   const recommendations = TutorService.getPipelineRecommendations(projectType);
   if (recommendations.length === 0) return null;
 
-  const requiredDone = recommendations
-    .filter(r => !r.optional)
-    .every(r => appliedStepTypes.includes(r.stepType));
+  /** Determine if a step is actually needed based on data */
+  const isStepNeeded = (stepType: PipelineStepType): boolean => {
+    if (!dataSummary) return true;
+    if (stepType === 'missing-values') return dataSummary.missingValueCount > 0;
+    if (stepType === 'encoding') return dataSummary.categoricalColumns.length > 0;
+    return true;
+  };
 
-  if (requiredDone) return null;
+  // Only show steps that are relevant to the data
+  const neededSteps = recommendations.filter(r => !r.optional && isStepNeeded(r.stepType));
+  const doneCount = neededSteps.filter(r => appliedStepTypes.includes(r.stepType)).length;
+
+  // Hide when all needed steps are done
+  if (neededSteps.length > 0 && doneCount >= neededSteps.length) return null;
+
+  // Find the first not-done step
+  const firstUndone = neededSteps.find(r => !appliedStepTypes.includes(r.stepType))?.stepType;
 
   return (
-    <Card className="border-blue-200 bg-blue-50/50">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-base flex items-center gap-2">
-          <Lightbulb className="h-5 w-5 text-blue-600" />
-          Empfohlener Pfad
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-2">
-          {recommendations.map((rec, index) => {
-            const isDone = appliedStepTypes.includes(rec.stepType);
-            return (
-              <div
-                key={rec.stepType}
-                className="flex items-start gap-3"
-              >
-                <div className="flex items-center justify-center w-6 h-6 shrink-0 mt-0.5">
-                  {isDone ? (
-                    <CheckCircle2 className="h-5 w-5 text-green-600" />
-                  ) : (
-                    <span className="w-5 h-5 rounded-full border-2 border-blue-300 flex items-center justify-center text-xs font-medium text-blue-600">
-                      {index + 1}
-                    </span>
-                  )}
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className={`text-sm font-medium ${isDone ? 'line-through text-muted-foreground' : 'text-gray-900'}`}>
-                      {rec.label}
-                    </span>
-                    {rec.optional && (
-                      <Badge variant="outline" className="text-xs bg-white">Optional</Badge>
-                    )}
-                  </div>
-                  {!isDone && (
-                    <p className="text-xs text-muted-foreground mt-0.5">{rec.reason}</p>
-                  )}
-                </div>
+    <div className="flex flex-wrap items-center gap-2 px-1">
+      <Lightbulb className="h-4 w-4 text-blue-600 shrink-0" />
+      <span className="text-xs font-medium text-blue-700 mr-1">Empfohlener Pfad</span>
+
+      <div className="flex items-center gap-0">
+        {neededSteps.map((rec, index) => {
+          const isDone = appliedStepTypes.includes(rec.stepType);
+          const isNext = rec.stepType === firstUndone;
+
+          return (
+            <div key={rec.stepType} className="flex items-center">
+              {/* Connector line */}
+              {index > 0 && (
+                <div className={cn(
+                  'w-4 h-0.5 shrink-0',
+                  isDone ? 'bg-green-400' : 'bg-gray-200'
+                )} />
+              )}
+              {/* Step circle + label */}
+              <div className="flex items-center gap-1.5">
+                {isDone ? (
+                  <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />
+                ) : isNext ? (
+                  <div className="h-4 w-4 rounded-full border-2 border-orange-400 bg-orange-50 shrink-0" />
+                ) : (
+                  <div className="h-4 w-4 rounded-full border-2 border-gray-300 shrink-0" />
+                )}
+                <span className={cn(
+                  'text-xs whitespace-nowrap',
+                  isDone ? 'text-muted-foreground line-through' : isNext ? 'font-medium text-orange-700' : 'text-muted-foreground'
+                )}>
+                  {SHORT_LABELS[rec.stepType]}
+                </span>
               </div>
-            );
-          })}
-        </div>
-      </CardContent>
-    </Card>
+            </div>
+          );
+        })}
+      </div>
+
+      <Badge variant="outline" className="text-xs ml-auto bg-white">
+        {doneCount}/{neededSteps.length} erledigt
+      </Badge>
+    </div>
   );
 }
 

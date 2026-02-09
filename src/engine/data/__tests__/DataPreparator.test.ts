@@ -52,6 +52,7 @@ function makeMockSummary(overrides?: Partial<PreparedDataSummary>): PreparedData
     columnNames: ['Alter', 'Gehalt', 'Erfahrung', 'Abteilung', 'Ziel'],
     numericColumns: ['Alter', 'Gehalt', 'Erfahrung'],
     categoricalColumns: ['Abteilung', 'Ziel'],
+    missingValueCount: 0,
     trainRows: undefined,
     testRows: undefined,
     hasSplit: false,
