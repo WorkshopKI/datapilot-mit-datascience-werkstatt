@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { GlossaryLink, GlossaryText } from '../GlossaryLink';
+import { GlossaryTermsCard } from '../shared/GlossaryTermsCard';
 import { Plus, Trash2, Edit2, Check, X, Target, Lightbulb, Info, List, BookOpen } from 'lucide-react';
 
 interface BusinessUnderstandingProps {
@@ -249,23 +250,13 @@ export function BusinessUnderstanding({
       </Card>
 
       {/* Relevant Glossary Terms (Pattern 11) */}
-      <Card className="bg-muted/30">
-        <CardHeader className="pb-1">
-          <CardTitle className="text-sm flex items-center gap-2">
-            <BookOpen className="h-4 w-4" />
-            Relevante Begriffe
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-1.5">
-            <GlossaryLink term="Business Understanding" className="text-xs" />
-            <GlossaryLink term="KPI" className="text-xs" />
-            <GlossaryLink term="Feature" className="text-xs" />
-            <GlossaryLink term="Target Variable" termId="zielvariable" className="text-xs" />
-            <GlossaryLink term="Stakeholder" className="text-xs" />
-          </div>
-        </CardContent>
-      </Card>
+      <GlossaryTermsCard terms={[
+        { term: 'Business Understanding' },
+        { term: 'KPI' },
+        { term: 'Feature' },
+        { term: 'Target Variable', termId: 'zielvariable' },
+        { term: 'Stakeholder' },
+      ]} />
 
       {/* Lernbereich-Link (Pattern 12) */}
       <a

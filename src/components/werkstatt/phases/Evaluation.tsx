@@ -15,6 +15,7 @@ import {
   BarChart3, CheckCircle2, Info, Brain, Eye, GitCompare, Code, BookOpen, Check,
 } from 'lucide-react';
 import { GlossaryLink } from '../GlossaryLink';
+import { GlossaryTermsCard } from '../shared/GlossaryTermsCard';
 import type { WorkspaceProject, TrainedModel } from '@/engine/types';
 
 interface EvaluationProps {
@@ -57,7 +58,14 @@ export function Evaluation({ project, onUpdateProject }: EvaluationProps) {
             </p>
           </CardHeader>
         </Card>
-        <GlossaryTermsCard />
+        <GlossaryTermsCard terms={[
+          { term: 'Confusion Matrix', termId: 'confusion-matrix' },
+          { term: 'Precision' },
+          { term: 'Recall' },
+          { term: 'F1-Score', termId: 'f1-score' },
+          { term: 'AUC-ROC', termId: 'auc-roc' },
+          { term: 'Overfitting' },
+        ]} />
       </div>
     );
   }
@@ -216,7 +224,14 @@ export function Evaluation({ project, onUpdateProject }: EvaluationProps) {
         </div>
       </div>
 
-      <GlossaryTermsCard />
+      <GlossaryTermsCard terms={[
+          { term: 'Confusion Matrix', termId: 'confusion-matrix' },
+          { term: 'Precision' },
+          { term: 'Recall' },
+          { term: 'F1-Score', termId: 'f1-score' },
+          { term: 'AUC-ROC', termId: 'auc-roc' },
+          { term: 'Overfitting' },
+        ]} />
 
       {/* Lernbereich-Link (Pattern 12) */}
       <a
@@ -684,29 +699,3 @@ function ModelComparisonTable({ models, projectType, selectedModelId, onSelectMo
   );
 }
 
-// =============================================
-// Shared Components
-// =============================================
-
-function GlossaryTermsCard() {
-  return (
-    <Card className="bg-muted/30">
-      <CardHeader className="pb-1">
-        <CardTitle className="text-sm flex items-center gap-2">
-          <BookOpen className="h-4 w-4" />
-          Relevante Begriffe
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="flex flex-wrap gap-1.5">
-          <GlossaryLink term="Confusion Matrix" termId="confusion-matrix" className="text-xs" />
-          <GlossaryLink term="Precision" className="text-xs" />
-          <GlossaryLink term="Recall" className="text-xs" />
-          <GlossaryLink term="F1-Score" termId="f1-score" className="text-xs" />
-          <GlossaryLink term="AUC-ROC" termId="auc-roc" className="text-xs" />
-          <GlossaryLink term="Overfitting" className="text-xs" />
-        </div>
-      </CardContent>
-    </Card>
-  );
-}

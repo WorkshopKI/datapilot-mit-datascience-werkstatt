@@ -19,6 +19,7 @@ import {
   ArrowUpDown, ChevronUp, ChevronDown, Search, Hash,
 } from 'lucide-react';
 import { GlossaryLink } from '../GlossaryLink';
+import { GlossaryTermsCard } from '../shared/GlossaryTermsCard';
 import { DataImportZone } from '../DataImportZone';
 import { usePyodide } from '@/hooks/usePyodide';
 import { DataAnalyzer } from '@/engine/data/DataAnalyzer';
@@ -798,24 +799,14 @@ export function DataUnderstanding({ project, onUpdateProject }: DataUnderstandin
       </Tabs>
 
       {/* Relevante Begriffe (Pattern 11) */}
-      <Card className="bg-muted/30">
-        <CardHeader className="pb-1 pt-3 px-4">
-          <CardTitle className="text-sm flex items-center gap-1.5">
-            <BookOpen className="h-3.5 w-3.5" />
-            Relevante Begriffe
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="pb-3 px-4 pt-0">
-          <div className="flex flex-wrap gap-1.5 text-xs">
-            <GlossaryLink term="Explorative Datenanalyse" termId="eda" />
-            <GlossaryLink term="Deskriptive Statistik" termId="mittelwert" />
-            <GlossaryLink term="Fehlende Werte" termId="fehlende-werte" />
-            <GlossaryLink term="Ausreißer" termId="ausreisser" />
-            <GlossaryLink term="Korrelation" />
-            <GlossaryLink term="Verteilung" termId="normalverteilung" />
-          </div>
-        </CardContent>
-      </Card>
+      <GlossaryTermsCard terms={[
+        { term: 'Explorative Datenanalyse', termId: 'eda' },
+        { term: 'Deskriptive Statistik', termId: 'mittelwert' },
+        { term: 'Fehlende Werte', termId: 'fehlende-werte' },
+        { term: 'Ausreißer', termId: 'ausreisser' },
+        { term: 'Korrelation' },
+        { term: 'Verteilung', termId: 'normalverteilung' },
+      ]} />
 
       {/* Lernbereich-Link (Pattern 12) */}
       <a

@@ -13,6 +13,7 @@ import {
   Info, AlertCircle, Settings2, Clock, CheckCircle2, BookOpen,
 } from 'lucide-react';
 import { GlossaryLink } from '../GlossaryLink';
+import { GlossaryTermsCard } from '../shared/GlossaryTermsCard';
 import { ModelTrainer } from '@/engine/modeling/ModelTrainer';
 import type { AlgorithmInfo, HyperparameterDef } from '@/engine/modeling/ModelTrainer';
 import type {
@@ -25,6 +26,14 @@ interface ModelingProps {
 }
 
 type ViewState = 'no-data' | 'ready' | 'training' | 'error';
+
+const GLOSSARY_TERMS = [
+  { term: 'Machine Learning', termId: 'machine-learning' },
+  { term: 'Hyperparameter' },
+  { term: 'Cross-Validation', termId: 'cross-validation' },
+  { term: 'Overfitting' },
+  { term: 'Baseline' },
+];
 
 export function Modeling({ project, onUpdateProject }: ModelingProps) {
   const [viewState, setViewState] = useState<ViewState>(
@@ -136,7 +145,7 @@ export function Modeling({ project, onUpdateProject }: ModelingProps) {
             </p>
           </CardHeader>
         </Card>
-        <GlossaryTermsCard />
+        <GlossaryTermsCard terms={GLOSSARY_TERMS} />
       </div>
     );
   }
@@ -157,7 +166,7 @@ export function Modeling({ project, onUpdateProject }: ModelingProps) {
             </p>
           </CardContent>
         </Card>
-        <GlossaryTermsCard />
+        <GlossaryTermsCard terms={GLOSSARY_TERMS} />
       </div>
     );
   }
@@ -341,7 +350,7 @@ export function Modeling({ project, onUpdateProject }: ModelingProps) {
         </div>
       </div>
 
-      <GlossaryTermsCard />
+      <GlossaryTermsCard terms={GLOSSARY_TERMS} />
 
       {/* Lernbereich-Link (Pattern 12) */}
       <a
@@ -456,24 +465,3 @@ function TrainedModelCard({ model, projectType, isSelected, onRemove, disabled }
   );
 }
 
-function GlossaryTermsCard() {
-  return (
-    <Card className="bg-muted/30">
-      <CardHeader className="pb-1">
-        <CardTitle className="text-sm flex items-center gap-2">
-          <BookOpen className="h-4 w-4" />
-          Relevante Begriffe
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="flex flex-wrap gap-1.5">
-          <GlossaryLink term="Machine Learning" termId="machine-learning" className="text-xs" />
-          <GlossaryLink term="Hyperparameter" className="text-xs" />
-          <GlossaryLink term="Cross-Validation" termId="cross-validation" className="text-xs" />
-          <GlossaryLink term="Overfitting" className="text-xs" />
-          <GlossaryLink term="Baseline" className="text-xs" />
-        </div>
-      </CardContent>
-    </Card>
-  );
-}

@@ -12,6 +12,7 @@ import {
   CheckCircle2, ClipboardList, ChevronDown, ChevronUp, BookOpen,
 } from 'lucide-react';
 import { GlossaryLink } from '../GlossaryLink';
+import { GlossaryTermsCard } from '../shared/GlossaryTermsCard';
 import { ModelDeployer } from '@/engine/deployment/ModelDeployer';
 import type { PredictionResult } from '@/engine/deployment/ModelDeployer';
 import type { WorkspaceProject, TrainedModel } from '@/engine/types';
@@ -45,7 +46,13 @@ export function Deployment({ project, onUpdateProject }: DeploymentProps) {
             </p>
           </CardHeader>
         </Card>
-        <GlossaryTermsCard />
+        <GlossaryTermsCard terms={[
+          { term: 'Deployment' },
+          { term: 'Monitoring' },
+          { term: 'Data Drift', termId: 'data-drift' },
+          { term: 'MLOps' },
+          { term: 'A/B Testing', termId: 'ab-testing' },
+        ]} />
       </div>
     );
   }
@@ -115,7 +122,13 @@ export function Deployment({ project, onUpdateProject }: DeploymentProps) {
         </div>
       </div>
 
-      <GlossaryTermsCard />
+      <GlossaryTermsCard terms={[
+          { term: 'Deployment' },
+          { term: 'Monitoring' },
+          { term: 'Data Drift', termId: 'data-drift' },
+          { term: 'MLOps' },
+          { term: 'A/B Testing', termId: 'ab-testing' },
+        ]} />
 
       {/* Lernbereich-Link (Pattern 12) */}
       <a
@@ -622,28 +635,3 @@ function ProjectSummaryPanel({ project, model }: {
   );
 }
 
-// =============================================
-// Shared Components
-// =============================================
-
-function GlossaryTermsCard() {
-  return (
-    <Card className="bg-muted/30">
-      <CardHeader className="pb-1">
-        <CardTitle className="text-sm flex items-center gap-2">
-          <BookOpen className="h-4 w-4" />
-          Relevante Begriffe
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="flex flex-wrap gap-1.5">
-          <GlossaryLink term="Deployment" className="text-xs" />
-          <GlossaryLink term="Monitoring" className="text-xs" />
-          <GlossaryLink term="Data Drift" termId="data-drift" className="text-xs" />
-          <GlossaryLink term="MLOps" className="text-xs" />
-          <GlossaryLink term="A/B Testing" termId="ab-testing" className="text-xs" />
-        </div>
-      </CardContent>
-    </Card>
-  );
-}

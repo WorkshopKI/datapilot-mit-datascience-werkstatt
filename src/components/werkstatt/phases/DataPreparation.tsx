@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { GlossaryLink } from '../GlossaryLink';
+import { GlossaryTermsCard } from '../shared/GlossaryTermsCard';
 import { DataPreparator } from '@/engine/data/DataPreparator';
 import { TutorService } from '@/engine/tutor/TutorService';
 import type { PipelineRecommendation } from '@/engine/tutor/TutorService';
@@ -216,7 +217,15 @@ export function DataPreparation({ project, onUpdateProject }: DataPreparationPro
             </p>
           </CardHeader>
         </Card>
-        <GlossaryTermsCard />
+        <GlossaryTermsCard terms={[
+              { term: 'Feature Engineering', termId: 'feature-engineering' },
+              { term: 'Imputation', termId: 'imputation' },
+              { term: 'One-Hot Encoding', termId: 'one-hot-encoding' },
+              { term: 'Normalisierung', termId: 'normalisierung' },
+              { term: 'Train-Test-Split', termId: 'train-test-split' },
+              { term: 'Ausreißer', termId: 'ausreisser' },
+              { term: 'Skalierung', termId: 'standardisierung' },
+            ]} />
         <LernbereichLink />
       </div>
     );
@@ -446,7 +455,15 @@ export function DataPreparation({ project, onUpdateProject }: DataPreparationPro
               </CardContent>
             </Card>
 
-            <GlossaryTermsCard />
+            <GlossaryTermsCard terms={[
+              { term: 'Feature Engineering', termId: 'feature-engineering' },
+              { term: 'Imputation', termId: 'imputation' },
+              { term: 'One-Hot Encoding', termId: 'one-hot-encoding' },
+              { term: 'Normalisierung', termId: 'normalisierung' },
+              { term: 'Train-Test-Split', termId: 'train-test-split' },
+              { term: 'Ausreißer', termId: 'ausreisser' },
+              { term: 'Skalierung', termId: 'standardisierung' },
+            ]} />
             <LernbereichLink />
           </div>
         </TabsContent>
@@ -1256,30 +1273,6 @@ function RecommendedPathCard({
         {doneCount}/{neededSteps.length} erledigt
       </Badge>
     </div>
-  );
-}
-
-function GlossaryTermsCard() {
-  return (
-    <Card className="bg-muted/30">
-      <CardHeader className="pb-1">
-        <CardTitle className="text-sm flex items-center gap-2">
-          <BookOpen className="h-4 w-4" />
-          Relevante Begriffe
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="flex flex-wrap gap-1.5">
-          <GlossaryLink term="Feature Engineering" termId="feature-engineering" className="text-xs" />
-          <GlossaryLink term="Imputation" termId="imputation" className="text-xs" />
-          <GlossaryLink term="One-Hot Encoding" termId="one-hot-encoding" className="text-xs" />
-          <GlossaryLink term="Normalisierung" termId="normalisierung" className="text-xs" />
-          <GlossaryLink term="Train-Test-Split" termId="train-test-split" className="text-xs" />
-          <GlossaryLink term="Ausreißer" termId="ausreisser" className="text-xs" />
-          <GlossaryLink term="Skalierung" termId="standardisierung" className="text-xs" />
-        </div>
-      </CardContent>
-    </Card>
   );
 }
 
