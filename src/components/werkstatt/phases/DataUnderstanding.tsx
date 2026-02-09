@@ -10,18 +10,15 @@ import {
   TableHeader, TableRow,
 } from '@/components/ui/table';
 import { Slider } from '@/components/ui/slider';
-import { cn } from '@/lib/utils';
-import { Input } from '@/components/ui/input';
-import { Checkbox } from '@/components/ui/checkbox';
 import {
-  Database, Upload, FlaskConical, BarChart3,
+  Database, Upload, FlaskConical,
   Info, Loader2, AlertTriangle, RefreshCw, BookOpen, SlidersHorizontal,
-  ArrowUpDown, ChevronUp, ChevronDown, Search, Hash,
 } from 'lucide-react';
 import { GlossaryLink } from '../GlossaryLink';
 import { GlossaryTermsCard } from '../shared/GlossaryTermsCard';
 import { LernbereichLink } from '../shared/LernbereichLink';
-import { formatCellValue, formatNumber, getCorrelationColor, getMissingBarColor } from '../shared/formatUtils';
+import { formatNumber, getCorrelationColor, getMissingBarColor } from '../shared/formatUtils';
+import { DataPreviewTable } from '../shared/DataPreviewTable';
 import { DataImportZone } from '../DataImportZone';
 import { usePyodide } from '@/hooks/usePyodide';
 import { DataAnalyzer } from '@/engine/data/DataAnalyzer';
@@ -46,13 +43,6 @@ export function DataUnderstanding({ project, onUpdateProject }: DataUnderstandin
   const [dataSourceLabel, setDataSourceLabel] = useState<string>('');
   const [genRowCount, setGenRowCount] = useState(300);
   const [genNoiseFactor, setGenNoiseFactor] = useState(0.1);
-
-  // Data preview table state
-  const [previewCount, setPreviewCount] = useState(10);
-  const [showAllRows, setShowAllRows] = useState(false);
-  const [sortColumn, setSortColumn] = useState<string | null>(null);
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
-  const [searchQuery, setSearchQuery] = useState('');
 
   const showSyntheticHint = isExampleProject(project.id) || project.hasDemoData;
 
@@ -580,17 +570,16 @@ export function DataUnderstanding({ project, onUpdateProject }: DataUnderstandin
         {/* Tab 2: Datenvorschau */}
         <TabsContent value="vorschau">
           <DataPreviewTable
-            result={result}
-            previewCount={previewCount}
-            setPreviewCount={setPreviewCount}
-            showAllRows={showAllRows}
-            setShowAllRows={setShowAllRows}
-            sortColumn={sortColumn}
-            setSortColumn={setSortColumn}
-            sortDirection={sortDirection}
-            setSortDirection={setSortDirection}
-            searchQuery={searchQuery}
-            setSearchQuery={setSearchQuery}
+            data={result.preview}
+            columns={result.columnNames}
+            numericColumns={result.numericColumns}
+            getColumnBadge={(col, isNumeric) => {
+              if (isNumeric) return 'num';
+              const colInfo = result.columns.find(c => c.name === col);
+              return colInfo?.dtype === 'object' ? 'text' : colInfo?.dtype ?? '?';
+            }}
+            hasMissingValues={result.columns.some(c => c.missing > 0)}
+            checkboxId="du-show-all-rows"
           />
         </TabsContent>
 
@@ -816,256 +805,6 @@ export function DataUnderstanding({ project, onUpdateProject }: DataUnderstandin
   );
 }
 
-// --- DataPreviewTable (interactive data preview with sort, search, slider) ---
-
-function DataPreviewTable({
-  result,
-  previewCount,
-  setPreviewCount,
-  showAllRows,
-  setShowAllRows,
-  sortColumn,
-  setSortColumn,
-  sortDirection,
-  setSortDirection,
-  searchQuery,
-  setSearchQuery,
-}: {
-  result: DataAnalysisResult;
-  previewCount: number;
-  setPreviewCount: (v: number) => void;
-  showAllRows: boolean;
-  setShowAllRows: (v: boolean) => void;
-  sortColumn: string | null;
-  setSortColumn: (v: string | null) => void;
-  sortDirection: 'asc' | 'desc';
-  setSortDirection: (v: 'asc' | 'desc') => void;
-  searchQuery: string;
-  setSearchQuery: (v: string) => void;
-}) {
-  // 1. Filter by search query
-  const filteredRows = useMemo(() => {
-    if (!searchQuery.trim()) return result.preview;
-    const q = searchQuery.toLowerCase();
-    return result.preview.filter(row =>
-      result.columnNames.some(col =>
-        String(row[col] ?? '').toLowerCase().includes(q)
-      )
-    );
-  }, [result.preview, result.columnNames, searchQuery]);
-
-  // 2. Sort
-  const sortedRows = useMemo(() => {
-    if (!sortColumn) return filteredRows;
-    return [...filteredRows].sort((a, b) => {
-      const va = a[sortColumn];
-      const vb = b[sortColumn];
-      if (va == null && vb == null) return 0;
-      if (va == null) return 1;
-      if (vb == null) return -1;
-      if (typeof va === 'number' && typeof vb === 'number') {
-        return sortDirection === 'asc' ? va - vb : vb - va;
-      }
-      const cmp = String(va).localeCompare(String(vb), 'de');
-      return sortDirection === 'asc' ? cmp : -cmp;
-    });
-  }, [filteredRows, sortColumn, sortDirection]);
-
-  // 3. Slice to desired count
-  const displayedRows = showAllRows
-    ? sortedRows
-    : sortedRows.slice(0, previewCount);
-
-  const handleSort = (col: string) => {
-    if (sortColumn === col) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortColumn(col);
-      setSortDirection('asc');
-    }
-  };
-
-  const SortIcon = ({ col }: { col: string }) => {
-    if (sortColumn !== col) return <ArrowUpDown className="h-3 w-3 text-muted-foreground/50" />;
-    return sortDirection === 'asc'
-      ? <ChevronUp className="h-3 w-3 text-primary" />
-      : <ChevronDown className="h-3 w-3 text-primary" />;
-  };
-
-  const hasMissingValues = result.columns.some(c => c.missing > 0);
-  const needsScroll = showAllRows || previewCount > 25;
-
-  return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-base flex items-center gap-2">
-          <BarChart3 className="h-4 w-4 text-primary" />
-          Datenvorschau
-          <span className="text-sm font-normal text-muted-foreground ml-1">
-            · {displayedRows.length} von {result.preview.length} Zeilen
-            {searchQuery.trim() && ` (gefiltert aus ${result.preview.length})`}
-          </span>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {/* Toolbar */}
-        <div className="flex flex-wrap items-center gap-3">
-          {/* Search */}
-          <div className="relative max-w-[200px]">
-            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-            <Input
-              placeholder="Suche..."
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              className="pl-7 h-8 text-sm"
-            />
-          </div>
-
-          {/* Spacer */}
-          <div className="flex-1" />
-
-          {/* Row count slider */}
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground whitespace-nowrap">Zeilen:</span>
-            <Slider
-              value={[previewCount]}
-              onValueChange={([v]) => {
-                setPreviewCount(v);
-                if (showAllRows) setShowAllRows(false);
-              }}
-              min={10}
-              max={100}
-              step={10}
-              disabled={showAllRows}
-              className="w-24"
-            />
-            <Badge variant="outline" className="text-xs min-w-[3rem] text-center">
-              {showAllRows ? 'Alle' : previewCount}
-            </Badge>
-          </div>
-
-          {/* Show all toggle */}
-          <div className="flex items-center gap-1.5">
-            <Checkbox
-              id="show-all-rows"
-              checked={showAllRows}
-              onCheckedChange={(checked) => setShowAllRows(checked === true)}
-            />
-            <label htmlFor="show-all-rows" className="text-xs text-muted-foreground cursor-pointer whitespace-nowrap">
-              Alle
-            </label>
-          </div>
-        </div>
-
-        {/* Table with scroll constraint when showing all rows */}
-        <div className={cn(
-          "overflow-x-auto",
-          needsScroll && "max-h-[600px] overflow-y-auto"
-        )}>
-          <DataTable
-            result={result}
-            displayedRows={displayedRows}
-            sortColumn={sortColumn}
-            handleSort={handleSort}
-            SortIcon={SortIcon}
-          />
-        </div>
-
-        {/* Missing values hint */}
-        {hasMissingValues && (
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Info className="h-3 w-3 shrink-0" />
-            <span>
-              Fehlende Werte sind <span className="bg-red-50 text-red-400 px-1 rounded">rot hervorgehoben</span>.
-            </span>
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-// --- DataTable (inner table component) ---
-
-function DataTable({
-  result,
-  displayedRows,
-  sortColumn,
-  handleSort,
-  SortIcon,
-}: {
-  result: DataAnalysisResult;
-  displayedRows: Record<string, unknown>[];
-  sortColumn: string | null;
-  handleSort: (col: string) => void;
-  SortIcon: React.ComponentType<{ col: string }>;
-}) {
-  return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          {/* Row number column */}
-          <TableHead className="py-1.5 px-2 w-10 text-right sticky top-0 bg-white z-10">
-            <Hash className="h-3 w-3 text-muted-foreground inline" />
-          </TableHead>
-          {result.columnNames.map(col => {
-            const colInfo = result.columns.find(c => c.name === col);
-            const isNumeric = result.numericColumns.includes(col);
-            const isSorted = sortColumn === col;
-            return (
-              <TableHead
-                key={col}
-                className={`py-1.5 px-2 cursor-pointer select-none transition-colors hover:bg-muted/50 sticky top-0 bg-white z-10 ${isSorted ? 'bg-muted/30' : ''}`}
-                onClick={() => handleSort(col)}
-              >
-                <div className="flex flex-col gap-0.5">
-                  <div className="flex items-center gap-1">
-                    <span className="font-medium text-xs">{col}</span>
-                    <SortIcon col={col} />
-                  </div>
-                  <Badge variant="outline" className="w-fit text-[10px] px-1 py-0">
-                    {isNumeric ? 'num' : colInfo?.dtype === 'object' ? 'text' : colInfo?.dtype ?? '?'}
-                  </Badge>
-                </div>
-              </TableHead>
-            );
-          })}
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {displayedRows.length === 0 ? (
-          <TableRow>
-            <TableCell colSpan={result.columnNames.length + 1} className="text-center py-8 text-muted-foreground">
-              <Search className="h-5 w-5 mx-auto mb-2 opacity-50" />
-              Keine Zeilen gefunden.
-            </TableCell>
-          </TableRow>
-        ) : (
-          displayedRows.map((row, i) => (
-            <TableRow key={i}>
-              <TableCell className="py-1 px-2 text-xs text-muted-foreground text-right w-10 font-mono">
-                {i + 1}
-              </TableCell>
-              {result.columnNames.map(col => {
-                const value = row[col];
-                const isMissing = value === null || value === undefined ||
-                  (typeof value === 'number' && isNaN(value));
-                return (
-                  <TableCell
-                    key={col}
-                    className={`py-1 px-2 text-xs font-mono ${isMissing ? 'bg-red-50 text-red-400' : ''}`}
-                  >
-                    {isMissing ? '–' : formatCellValue(value)}
-                  </TableCell>
-                );
-              })}
-            </TableRow>
-          ))
-        )}
-      </TableBody>
-    </Table>
-  );
-}
 
 // --- Correlation Heatmap (pure CSS grid) ---
 
