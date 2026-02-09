@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { GlossaryLink, GlossaryText } from '../GlossaryLink';
 import { GlossaryTermsCard } from '../shared/GlossaryTermsCard';
+import { LernbereichLink } from '../shared/LernbereichLink';
 import { Plus, Trash2, Edit2, Check, X, Target, Lightbulb, Info, List, BookOpen } from 'lucide-react';
 
 interface BusinessUnderstandingProps {
@@ -259,13 +260,7 @@ export function BusinessUnderstanding({
       ]} />
 
       {/* Lernbereich-Link (Pattern 12) */}
-      <a
-        href="/lernen/grundlagen#crisp-dm"
-        className="text-sm text-primary hover:underline flex items-center gap-1"
-      >
-        <BookOpen className="h-3.5 w-3.5" />
-        Mehr zu dieser Phase im Lernbereich →
-      </a>
+      <LernbereichLink />
     </div>
   );
 }

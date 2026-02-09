@@ -26,6 +26,7 @@ import {
 import { cn } from '@/lib/utils';
 import { GlossaryLink } from '../GlossaryLink';
 import { GlossaryTermsCard } from '../shared/GlossaryTermsCard';
+import { LernbereichLink } from '../shared/LernbereichLink';
 import { DataPreparator } from '@/engine/data/DataPreparator';
 import { TutorService } from '@/engine/tutor/TutorService';
 import type { PipelineRecommendation } from '@/engine/tutor/TutorService';
@@ -1273,18 +1274,6 @@ function RecommendedPathCard({
         {doneCount}/{neededSteps.length} erledigt
       </Badge>
     </div>
-  );
-}
-
-function LernbereichLink() {
-  return (
-    <a
-      href="/lernen/grundlagen#crisp-dm"
-      className="text-sm text-primary hover:underline flex items-center gap-1"
-    >
-      <BookOpen className="h-3.5 w-3.5" />
-      Mehr zu dieser Phase im Lernbereich →
-    </a>
   );
 }
 

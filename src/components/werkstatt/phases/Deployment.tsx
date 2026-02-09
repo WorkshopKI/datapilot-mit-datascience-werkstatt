@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { GlossaryLink } from '../GlossaryLink';
 import { GlossaryTermsCard } from '../shared/GlossaryTermsCard';
+import { LernbereichLink } from '../shared/LernbereichLink';
 import { ModelDeployer } from '@/engine/deployment/ModelDeployer';
 import type { PredictionResult } from '@/engine/deployment/ModelDeployer';
 import type { WorkspaceProject, TrainedModel } from '@/engine/types';
@@ -131,13 +132,7 @@ export function Deployment({ project, onUpdateProject }: DeploymentProps) {
         ]} />
 
       {/* Lernbereich-Link (Pattern 12) */}
-      <a
-        href="/lernen/grundlagen#crisp-dm"
-        className="text-sm text-primary hover:underline flex items-center gap-1"
-      >
-        <BookOpen className="h-3.5 w-3.5" />
-        Mehr zu dieser Phase im Lernbereich →
-      </a>
+      <LernbereichLink />
     </div>
   );
 }
