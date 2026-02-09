@@ -21,6 +21,7 @@ import {
 import { GlossaryLink } from '../GlossaryLink';
 import { GlossaryTermsCard } from '../shared/GlossaryTermsCard';
 import { LernbereichLink } from '../shared/LernbereichLink';
+import { formatCellValue, formatNumber, getCorrelationColor, getMissingBarColor } from '../shared/formatUtils';
 import { DataImportZone } from '../DataImportZone';
 import { usePyodide } from '@/hooks/usePyodide';
 import { DataAnalyzer } from '@/engine/data/DataAnalyzer';
@@ -1149,39 +1150,3 @@ function CorrelationHeatmap({
   );
 }
 
-// --- Helpers ---
-
-function getCorrelationColor(value: number): string {
-  // -1 → red, 0 → white/gray, +1 → blue
-  const clamped = Math.max(-1, Math.min(1, value));
-  if (clamped >= 0) {
-    // 0→white, 1→blue
-    const intensity = Math.round(clamped * 200);
-    return `rgb(${220 - intensity}, ${220 - intensity * 0.5}, 255)`;
-  }
-  // -1→red, 0→white
-  const intensity = Math.round(Math.abs(clamped) * 200);
-  return `rgb(255, ${220 - intensity * 0.7}, ${220 - intensity})`;
-}
-
-function getMissingBarColor(percent: number): string {
-  if (percent === 0) return 'bg-green-400';
-  if (percent <= 10) return 'bg-amber-400';
-  if (percent <= 50) return 'bg-orange-500';
-  return 'bg-red-500';
-}
-
-function formatNumber(value: number | undefined): string {
-  if (value === undefined || value === null) return '–';
-  if (Math.abs(value) >= 1000) return value.toLocaleString('de-DE', { maximumFractionDigits: 2 });
-  return value.toFixed(4);
-}
-
-function formatCellValue(value: unknown): string {
-  if (value === null || value === undefined) return '–';
-  if (typeof value === 'number') {
-    if (Number.isInteger(value)) return value.toString();
-    return value.toFixed(4);
-  }
-  return String(value);
-}

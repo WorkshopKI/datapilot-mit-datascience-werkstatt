@@ -27,6 +27,7 @@ import { cn } from '@/lib/utils';
 import { GlossaryLink } from '../GlossaryLink';
 import { GlossaryTermsCard } from '../shared/GlossaryTermsCard';
 import { LernbereichLink } from '../shared/LernbereichLink';
+import { formatCellValue } from '../shared/formatUtils';
 import { DataPreparator } from '@/engine/data/DataPreparator';
 import { TutorService } from '@/engine/tutor/TutorService';
 import type { PipelineRecommendation } from '@/engine/tutor/TutorService';
@@ -1527,15 +1528,3 @@ function PrepPreviewTable({
   );
 }
 
-// =============================================
-// Helpers
-// =============================================
-
-function formatCellValue(value: unknown): string {
-  if (value === null || value === undefined) return '–';
-  if (typeof value === 'number') {
-    if (Number.isInteger(value)) return value.toString();
-    return value.toFixed(4);
-  }
-  return String(value);
-}
