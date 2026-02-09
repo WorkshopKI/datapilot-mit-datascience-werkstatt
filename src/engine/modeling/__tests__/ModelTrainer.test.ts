@@ -611,6 +611,56 @@ describe('ModelTrainer', () => {
   });
 
   // ===========================================
+  // Non-numeric column guard
+  // ===========================================
+
+  describe('non-numeric column guard', () => {
+    it('buildTrainingCode includes _non_numeric check after feature setup', () => {
+      const code = ModelTrainer.buildTrainingCode(
+        { type: 'logistic-regression', hyperparameters: {} },
+        'Ziel', 'klassifikation',
+      );
+      expect(code).toContain('_non_numeric = X_train.select_dtypes(exclude=[\'number\']).columns.tolist()');
+      expect(code).toContain('if _non_numeric:');
+      expect(code).toContain('raise ValueError');
+      expect(code).toContain('Kategoriale Spalten muessen vor dem Training encodiert werden');
+    });
+
+    it('buildClusteringCode includes _non_numeric check before fit_predict', () => {
+      const code = ModelTrainer.buildClusteringCode(
+        { type: 'kmeans', hyperparameters: { n_clusters: 3 } },
+      );
+      expect(code).toContain('_non_numeric = df.select_dtypes(exclude=[\'number\']).columns.tolist()');
+      expect(code).toContain('if _non_numeric:');
+      expect(code).toContain('raise ValueError');
+      expect(code).toContain('Kategoriale Spalten muessen vor dem Training encodiert werden');
+    });
+
+    it('_non_numeric check comes before model creation in training code', () => {
+      const code = ModelTrainer.buildTrainingCode(
+        { type: 'logistic-regression', hyperparameters: {} },
+        'Ziel', 'klassifikation',
+      );
+      const guardIdx = code.indexOf('_non_numeric');
+      const modelIdx = code.indexOf('_model = ');
+      expect(guardIdx).toBeGreaterThan(-1);
+      expect(modelIdx).toBeGreaterThan(-1);
+      expect(guardIdx).toBeLessThan(modelIdx);
+    });
+
+    it('_non_numeric check comes before fit_predict in clustering code', () => {
+      const code = ModelTrainer.buildClusteringCode(
+        { type: 'dbscan', hyperparameters: { eps: 0.5 } },
+      );
+      const guardIdx = code.indexOf('_non_numeric');
+      const fitIdx = code.indexOf('fit_predict');
+      expect(guardIdx).toBeGreaterThan(-1);
+      expect(fitIdx).toBeGreaterThan(-1);
+      expect(guardIdx).toBeLessThan(fitIdx);
+    });
+  });
+
+  // ===========================================
   // getAlgorithmLabel
   // ===========================================
 

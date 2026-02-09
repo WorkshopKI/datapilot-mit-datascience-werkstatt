@@ -308,6 +308,10 @@ y_train = df_train[_target]
 X_test = df_test.drop(columns=[_target])
 y_test = df_test[_target]
 
+_non_numeric = X_train.select_dtypes(exclude=['number']).columns.tolist()
+if _non_numeric:
+    raise ValueError(f"Kategoriale Spalten muessen vor dem Training encodiert werden: {', '.join(_non_numeric)}. Bitte wende in der Data Preparation ein Encoding (One-Hot oder Label) an.")
+
 _model = ${className}(${hyperparamStr})
 _model.fit(X_train, y_train)
 y_pred = _model.predict(X_test)
@@ -337,6 +341,10 @@ import json as _json
 import numpy as _np
 ${importLine}
 from sklearn.metrics import silhouette_score
+
+_non_numeric = df.select_dtypes(exclude=['number']).columns.tolist()
+if _non_numeric:
+    raise ValueError(f"Kategoriale Spalten muessen vor dem Training encodiert werden: {', '.join(_non_numeric)}. Bitte wende in der Data Preparation ein Encoding (One-Hot oder Label) an.")
 
 _model = ${className}(${hyperparamStr})
 _labels = _model.fit_predict(df)
