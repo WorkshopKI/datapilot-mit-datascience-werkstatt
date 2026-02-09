@@ -217,11 +217,11 @@ describe('WorkspaceStorage', () => {
       }
     });
 
-    it('should have 5-6 features for each example', () => {
+    it('should have 5-8 features for each example', () => {
       const examples = WorkspaceStorage.getExampleProjects();
       for (const proj of examples) {
         expect(proj.features.length).toBeGreaterThanOrEqual(5);
-        expect(proj.features.length).toBeLessThanOrEqual(6);
+        expect(proj.features.length).toBeLessThanOrEqual(8);
       }
     });
 
@@ -286,7 +286,7 @@ describe('WorkspaceStorage', () => {
     });
 
     it('should preserve businessGoal and successCriteria', () => {
-      const clone = WorkspaceStorage.cloneExampleProject('example-credit-risk');
+      const clone = WorkspaceStorage.cloneExampleProject('example-iris');
       expect(clone.businessGoal).toBeTruthy();
       expect(clone.successCriteria).toBeTruthy();
     });

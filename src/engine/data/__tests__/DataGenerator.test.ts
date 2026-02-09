@@ -283,6 +283,129 @@ describe('DataGenerator', () => {
 
       expect(code).toContain('n_features=2');
     });
+
+    it('generates Titanic-specific code when features contain Pclass', () => {
+      const config = makeConfig({
+        rowCount: 891,
+        features: [
+          { id: 'f1', name: 'Pclass', type: 'kategorial', description: '' },
+          { id: 'f2', name: 'Sex', type: 'kategorial', description: '' },
+          { id: 'f3', name: 'Age', type: 'numerisch', description: '' },
+          { id: 'f4', name: 'SibSp', type: 'numerisch', description: '' },
+          { id: 'f5', name: 'Parch', type: 'numerisch', description: '' },
+          { id: 'f6', name: 'Fare', type: 'numerisch', description: '' },
+          { id: 'f7', name: 'Embarked', type: 'kategorial', description: '' },
+          { id: 'f8', name: 'Survived', type: 'kategorial', description: '', isTarget: true },
+        ],
+      });
+      const code = DataGenerator.buildPythonCode(config);
+
+      expect(code).not.toContain('make_classification');
+      expect(code).toContain('survival_prob');
+      expect(code).toContain("np.random.choice(['male', 'female']");
+      expect(code).toContain("np.random.choice(['S', 'C', 'Q']");
+      expect(code).toContain('n = 891');
+      expect(code).not.toContain('random_state=');
+      expect(code).toContain('np.random.seed(42)');
+    });
+
+    it('generates Titanic code when features contain Survived', () => {
+      const config = makeConfig({
+        features: [
+          { id: 'f1', name: 'Age', type: 'numerisch', description: '' },
+          { id: 'f2', name: 'Survived', type: 'kategorial', description: '', isTarget: true },
+        ],
+      });
+      const code = DataGenerator.buildPythonCode(config);
+
+      expect(code).toContain('survival_prob');
+      expect(code).not.toContain('make_classification');
+    });
+
+    it('generates Titanic code when features contain Embarked', () => {
+      const config = makeConfig({
+        features: [
+          { id: 'f1', name: 'Age', type: 'numerisch', description: '' },
+          { id: 'f2', name: 'Embarked', type: 'kategorial', description: '' },
+          { id: 'f3', name: 'Target', type: 'kategorial', description: '', isTarget: true },
+        ],
+      });
+      const code = DataGenerator.buildPythonCode(config);
+
+      expect(code).toContain('survival_prob');
+    });
+
+    it('generates Iris-specific code when features contain Sepal', () => {
+      const config = makeConfig({
+        rowCount: 150,
+        features: [
+          { id: 'f1', name: 'SepalLength', type: 'numerisch', description: '' },
+          { id: 'f2', name: 'SepalWidth', type: 'numerisch', description: '' },
+          { id: 'f3', name: 'PetalLength', type: 'numerisch', description: '' },
+          { id: 'f4', name: 'PetalWidth', type: 'numerisch', description: '' },
+          { id: 'f5', name: 'Species', type: 'kategorial', description: '', isTarget: true },
+        ],
+      });
+      const code = DataGenerator.buildPythonCode(config);
+
+      expect(code).not.toContain('make_classification');
+      expect(code).toContain('load_iris');
+      expect(code).toContain("'SepalLength'");
+      expect(code).toContain("'setosa'");
+      expect(code).toContain('df.head(150)');
+      expect(code).toContain('random_state=42');
+    });
+
+    it('generates Iris code when features contain Petal', () => {
+      const config = makeConfig({
+        features: [
+          { id: 'f1', name: 'PetalLength', type: 'numerisch', description: '' },
+          { id: 'f2', name: 'PetalWidth', type: 'numerisch', description: '' },
+          { id: 'f3', name: 'Species', type: 'kategorial', description: '', isTarget: true },
+        ],
+      });
+      const code = DataGenerator.buildPythonCode(config);
+
+      expect(code).toContain('load_iris');
+      expect(code).not.toContain('make_classification');
+    });
+
+    it('uses generic make_classification for non-Titanic/Iris features', () => {
+      const config = makeConfig({
+        features: makeFeatures(['Alter', 'Gehalt', 'Erfahrung'], 'Churn'),
+      });
+      const code = DataGenerator.buildPythonCode(config);
+
+      expect(code).toContain('make_classification');
+      expect(code).not.toContain('survival_prob');
+      expect(code).not.toContain('load_iris');
+    });
+
+    it('uses custom seed for Titanic code', () => {
+      const config = makeConfig({
+        randomSeed: 99,
+        features: [
+          { id: 'f1', name: 'Pclass', type: 'kategorial', description: '' },
+          { id: 'f2', name: 'Survived', type: 'kategorial', description: '', isTarget: true },
+        ],
+      });
+      const code = DataGenerator.buildPythonCode(config);
+
+      expect(code).toContain('np.random.seed(99)');
+    });
+
+    it('uses custom seed for Iris code', () => {
+      const config = makeConfig({
+        randomSeed: 77,
+        features: [
+          { id: 'f1', name: 'SepalLength', type: 'numerisch', description: '' },
+          { id: 'f2', name: 'Species', type: 'kategorial', description: '', isTarget: true },
+        ],
+      });
+      const code = DataGenerator.buildPythonCode(config);
+
+      expect(code).toContain('random_state=77');
+    });
   });
 
   // ===========================================

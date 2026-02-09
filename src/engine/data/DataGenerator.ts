@@ -164,11 +164,105 @@ export class DataGenerator {
     return `[${escaped.join(', ')}]`;
   }
 
+  /** Detect Titanic-like project by feature names */
+  private static isTitanicProject(features: Feature[]): boolean {
+    const names = features.map(f => f.name);
+    return names.some(n => n === 'Pclass' || n === 'Survived' || n === 'Embarked');
+  }
+
+  /** Detect Iris-like project by feature names */
+  private static isIrisProject(features: Feature[]): boolean {
+    const names = features.map(f => f.name);
+    return names.some(n => n.includes('Sepal') || n.includes('Petal'));
+  }
+
+  private static buildTitanicCode(config: DataGeneratorConfig, seed: number): string {
+    const rowCount = config.rowCount || 891;
+    return `
+import pandas as pd
+import numpy as np
+import json
+
+np.random.seed(${seed})
+n = ${rowCount}
+
+# Realistische Verteilungen basierend auf dem echten Titanic-Datensatz
+pclass = np.random.choice([1, 2, 3], size=n, p=[0.24, 0.21, 0.55])
+sex = np.random.choice(['male', 'female'], size=n, p=[0.65, 0.35])
+age = np.clip(np.random.normal(29.7, 14.5, n), 0.5, 80).round(1)
+# ~20% fehlende Werte für Age (wie im echten Datensatz!)
+age_mask = np.random.random(n) < 0.20
+age = age.astype(object)
+age[age_mask] = None
+sibsp = np.random.choice([0,1,2,3,4,5], size=n, p=[0.68, 0.23, 0.03, 0.02, 0.02, 0.02])
+parch = np.random.choice([0,1,2,3,4,5], size=n, p=[0.76, 0.13, 0.05, 0.02, 0.02, 0.02])
+fare = np.clip(np.random.exponential(32, n), 0, 512).round(2)
+embarked = np.random.choice(['S', 'C', 'Q'], size=n, p=[0.72, 0.19, 0.09])
+
+# Überlebenswahrscheinlichkeit abhängig von Features (realistisch ~38% Überlebensrate)
+survival_prob = np.full(n, 0.38)
+survival_prob[sex == 'female'] += 0.35
+survival_prob[pclass == 1] += 0.15
+survival_prob[pclass == 3] -= 0.10
+survival_prob = np.clip(survival_prob + np.random.normal(0, 0.05, n), 0.02, 0.98)
+survived = (np.random.random(n) < survival_prob).astype(int)
+
+df = pd.DataFrame({
+    'Pclass': pclass,
+    'Sex': sex,
+    'Age': age,
+    'SibSp': sibsp,
+    'Parch': parch,
+    'Fare': fare,
+    'Embarked': embarked,
+    'Survived': survived
+})
+
+result = {
+    "columns": df.columns.tolist(),
+    "rows": json.loads(df.to_json(orient="records")),
+    "rowCount": len(df)
+}
+result
+`.trim();
+  }
+
+  private static buildIrisCode(config: DataGeneratorConfig, seed: number): string {
+    const rowCount = config.rowCount || 150;
+    return `
+import pandas as pd
+from sklearn.datasets import load_iris
+import json
+
+iris = load_iris()
+df = pd.DataFrame(iris.data, columns=['SepalLength', 'SepalWidth', 'PetalLength', 'PetalWidth'])
+df['Species'] = pd.Series(iris.target).map({0: 'setosa', 1: 'versicolor', 2: 'virginica'})
+# Shuffle
+df = df.sample(frac=1, random_state=${seed}).reset_index(drop=True)
+df = df.head(${rowCount})
+
+result = {
+    "columns": df.columns.tolist(),
+    "rows": json.loads(df.to_json(orient="records")),
+    "rowCount": len(df)
+}
+result
+`.trim();
+  }
+
   private static buildClassificationCode(
     config: DataGeneratorConfig,
     seed: number,
     noise: number,
   ): string {
+    // Route to specialized builders for known datasets
+    if (DataGenerator.isTitanicProject(config.features)) {
+      return DataGenerator.buildTitanicCode(config, seed);
+    }
+    if (DataGenerator.isIrisProject(config.features)) {
+      return DataGenerator.buildIrisCode(config, seed);
+    }
+
     const featureNames = DataGenerator.getFeatureNames(config.features, true);
     const targetName = DataGenerator.getTargetName(config.features);
     const nFeatures = Math.max(featureNames.length, 2);
