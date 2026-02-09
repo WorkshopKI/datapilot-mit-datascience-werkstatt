@@ -629,19 +629,19 @@ function ProjectSummaryPanel({ project, model }: {
 function GlossaryTermsCard() {
   return (
     <Card className="bg-muted/30">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-base flex items-center gap-2">
+      <CardHeader className="pb-1">
+        <CardTitle className="text-sm flex items-center gap-2">
           <BookOpen className="h-4 w-4" />
           Relevante Begriffe
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="flex flex-wrap gap-2">
-          <GlossaryLink term="Deployment" />
-          <GlossaryLink term="Monitoring" />
-          <GlossaryLink term="Data Drift" termId="data-drift" />
-          <GlossaryLink term="MLOps" />
-          <GlossaryLink term="A/B Testing" termId="ab-testing" />
+        <div className="flex flex-wrap gap-1.5">
+          <GlossaryLink term="Deployment" className="text-xs" />
+          <GlossaryLink term="Monitoring" className="text-xs" />
+          <GlossaryLink term="Data Drift" termId="data-drift" className="text-xs" />
+          <GlossaryLink term="MLOps" className="text-xs" />
+          <GlossaryLink term="A/B Testing" termId="ab-testing" className="text-xs" />
         </div>
       </CardContent>
     </Card>

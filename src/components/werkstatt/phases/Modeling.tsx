@@ -424,19 +424,19 @@ function TrainedModelCard({ model, projectType, isSelected, onRemove, disabled }
 function GlossaryTermsCard() {
   return (
     <Card className="bg-muted/30">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-base flex items-center gap-2">
+      <CardHeader className="pb-1">
+        <CardTitle className="text-sm flex items-center gap-2">
           <BookOpen className="h-4 w-4" />
           Relevante Begriffe
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="flex flex-wrap gap-2">
-          <GlossaryLink term="Machine Learning" termId="machine-learning" />
-          <GlossaryLink term="Hyperparameter" />
-          <GlossaryLink term="Cross-Validation" termId="cross-validation" />
-          <GlossaryLink term="Overfitting" />
-          <GlossaryLink term="Baseline" />
+        <div className="flex flex-wrap gap-1.5">
+          <GlossaryLink term="Machine Learning" termId="machine-learning" className="text-xs" />
+          <GlossaryLink term="Hyperparameter" className="text-xs" />
+          <GlossaryLink term="Cross-Validation" termId="cross-validation" className="text-xs" />
+          <GlossaryLink term="Overfitting" className="text-xs" />
+          <GlossaryLink term="Baseline" className="text-xs" />
         </div>
       </CardContent>
     </Card>

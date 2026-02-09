@@ -250,19 +250,19 @@ export function BusinessUnderstanding({
 
       {/* Relevant Glossary Terms (Pattern 11) */}
       <Card className="bg-muted/30">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base flex items-center gap-2">
+        <CardHeader className="pb-1">
+          <CardTitle className="text-sm flex items-center gap-2">
             <BookOpen className="h-4 w-4" />
             Relevante Begriffe
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-wrap gap-2">
-            <GlossaryLink term="Business Understanding" className="text-sm" />
-            <GlossaryLink term="KPI" className="text-sm" />
-            <GlossaryLink term="Feature" className="text-sm" />
-            <GlossaryLink term="Target Variable" termId="zielvariable" className="text-sm" />
-            <GlossaryLink term="Stakeholder" className="text-sm" />
+          <div className="flex flex-wrap gap-1.5">
+            <GlossaryLink term="Business Understanding" className="text-xs" />
+            <GlossaryLink term="KPI" className="text-xs" />
+            <GlossaryLink term="Feature" className="text-xs" />
+            <GlossaryLink term="Target Variable" termId="zielvariable" className="text-xs" />
+            <GlossaryLink term="Stakeholder" className="text-xs" />
           </div>
         </CardContent>
       </Card>

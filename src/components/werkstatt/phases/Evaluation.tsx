@@ -691,20 +691,20 @@ function ModelComparisonTable({ models, projectType, selectedModelId, onSelectMo
 function GlossaryTermsCard() {
   return (
     <Card className="bg-muted/30">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-base flex items-center gap-2">
+      <CardHeader className="pb-1">
+        <CardTitle className="text-sm flex items-center gap-2">
           <BookOpen className="h-4 w-4" />
           Relevante Begriffe
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="flex flex-wrap gap-2">
-          <GlossaryLink term="Confusion Matrix" termId="confusion-matrix" />
-          <GlossaryLink term="Precision" />
-          <GlossaryLink term="Recall" />
-          <GlossaryLink term="F1-Score" termId="f1-score" />
-          <GlossaryLink term="AUC-ROC" termId="auc-roc" />
-          <GlossaryLink term="Overfitting" />
+        <div className="flex flex-wrap gap-1.5">
+          <GlossaryLink term="Confusion Matrix" termId="confusion-matrix" className="text-xs" />
+          <GlossaryLink term="Precision" className="text-xs" />
+          <GlossaryLink term="Recall" className="text-xs" />
+          <GlossaryLink term="F1-Score" termId="f1-score" className="text-xs" />
+          <GlossaryLink term="AUC-ROC" termId="auc-roc" className="text-xs" />
+          <GlossaryLink term="Overfitting" className="text-xs" />
         </div>
       </CardContent>
     </Card>

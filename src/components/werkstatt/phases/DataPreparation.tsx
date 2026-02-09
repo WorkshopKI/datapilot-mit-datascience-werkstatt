@@ -1262,21 +1262,21 @@ function RecommendedPathCard({
 function GlossaryTermsCard() {
   return (
     <Card className="bg-muted/30">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-base flex items-center gap-2">
+      <CardHeader className="pb-1">
+        <CardTitle className="text-sm flex items-center gap-2">
           <BookOpen className="h-4 w-4" />
           Relevante Begriffe
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="flex flex-wrap gap-2">
-          <GlossaryLink term="Feature Engineering" termId="feature-engineering" />
-          <GlossaryLink term="Imputation" termId="imputation" />
-          <GlossaryLink term="One-Hot Encoding" termId="one-hot-encoding" />
-          <GlossaryLink term="Normalisierung" termId="normalisierung" />
-          <GlossaryLink term="Train-Test-Split" termId="train-test-split" />
-          <GlossaryLink term="Ausreißer" termId="ausreisser" />
-          <GlossaryLink term="Skalierung" termId="standardisierung" />
+        <div className="flex flex-wrap gap-1.5">
+          <GlossaryLink term="Feature Engineering" termId="feature-engineering" className="text-xs" />
+          <GlossaryLink term="Imputation" termId="imputation" className="text-xs" />
+          <GlossaryLink term="One-Hot Encoding" termId="one-hot-encoding" className="text-xs" />
+          <GlossaryLink term="Normalisierung" termId="normalisierung" className="text-xs" />
+          <GlossaryLink term="Train-Test-Split" termId="train-test-split" className="text-xs" />
+          <GlossaryLink term="Ausreißer" termId="ausreisser" className="text-xs" />
+          <GlossaryLink term="Skalierung" termId="standardisierung" className="text-xs" />
         </div>
       </CardContent>
     </Card>
