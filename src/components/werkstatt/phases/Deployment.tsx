@@ -7,11 +7,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-  Rocket, Loader2, Info, AlertCircle, Brain,
+  Rocket, Loader2, AlertCircle, Brain,
   Play, Download, FileCode, FileText, Code,
-  CheckCircle2, ClipboardList, ChevronDown, ChevronUp, BookOpen,
+  CheckCircle2, ClipboardList, ChevronDown, ChevronUp,
+  Lightbulb,
 } from 'lucide-react';
-import { GlossaryLink } from '../GlossaryLink';
 import { GlossaryTermsCard } from '../shared/GlossaryTermsCard';
 import { LernbereichLink } from '../shared/LernbereichLink';
 import { ModelDeployer } from '@/engine/deployment/ModelDeployer';
@@ -102,27 +102,6 @@ export function Deployment({ project, onUpdateProject }: DeploymentProps) {
         </TabsContent>
       </Tabs>
 
-      {/* Tutor Tip */}
-      <div className="bg-orange-50 border border-orange-200 rounded-xl p-4">
-        <div className="flex gap-3">
-          <Info className="h-5 w-5 text-orange-500 shrink-0 mt-0.5" />
-          <div className="text-sm">
-            <p className="font-medium text-orange-800 mb-1">Tipp: Deployment</p>
-            <p className="text-orange-700">
-              Im echten{' '}
-              <GlossaryLink term="Deployment" termId="deployment">Deployment</GlossaryLink>{' '}
-              wird das Modell in eine Produktionsumgebung integriert. Dabei ist{' '}
-              <GlossaryLink term="Monitoring" termId="monitoring">Monitoring</GlossaryLink>{' '}
-              wichtig, um die{' '}
-              <GlossaryLink term="Modellperformance" termId="modellperformance">Modellperformance</GlossaryLink>{' '}
-              zu überwachen. Achte auf{' '}
-              <GlossaryLink term="Data Drift" termId="data-drift">Data Drift</GlossaryLink>{' '}
-              – wenn sich die Daten über die Zeit verändern, kann die Vorhersagequalität sinken.
-            </p>
-          </div>
-        </div>
-      </div>
-
       <GlossaryTermsCard terms={[
           { term: 'Deployment' },
           { term: 'Monitoring' },
@@ -185,6 +164,52 @@ function ModelSummaryCard({ model, projectType }: { model: TrainedModel; project
 }
 
 // =============================================
+// Prediction Panel – Placeholder Hints & Example Values
+// =============================================
+
+/** Data-aware placeholder hints for common column names */
+const PLACEHOLDER_HINTS: Record<string, string> = {
+  'Pclass': 'z.B. 1, 2 oder 3',
+  'Sex': 'z.B. male oder female',
+  'Age': 'z.B. 25',
+  'SibSp': 'z.B. 0',
+  'Parch': 'z.B. 0',
+  'Fare': 'z.B. 32.50',
+  'Embarked': 'z.B. S, C oder Q',
+  'SepalLength': 'z.B. 5.1',
+  'SepalWidth': 'z.B. 3.5',
+  'PetalLength': 'z.B. 1.4',
+  'PetalWidth': 'z.B. 0.2',
+};
+
+/** Pre-defined example value sets for known datasets */
+const EXAMPLE_VALUES: Record<string, Record<string, string>> = {
+  default_titanic: {
+    'Pclass': '3', 'Sex': 'male', 'Age': '25',
+    'SibSp': '0', 'Parch': '0', 'Fare': '7.25', 'Embarked': 'S',
+  },
+  default_iris: {
+    'SepalLength': '5.1', 'SepalWidth': '3.5',
+    'PetalLength': '1.4', 'PetalWidth': '0.2',
+  },
+};
+
+/**
+ * Detect which example value set matches the current feature columns.
+ * Returns the key into EXAMPLE_VALUES or null if no match.
+ */
+function detectExampleSet(columns: string[]): string | null {
+  for (const [key, values] of Object.entries(EXAMPLE_VALUES)) {
+    const exampleCols = Object.keys(values);
+    // Match if all example columns are present in the feature columns
+    if (exampleCols.every(ec => columns.includes(ec))) {
+      return key;
+    }
+  }
+  return null;
+}
+
+// =============================================
 // Prediction Panel
 // =============================================
 
@@ -212,6 +237,26 @@ function PredictionPanel({ project, model, isClustering }: {
   const [predicting, setPredicting] = useState(false);
   const [result, setResult] = useState<PredictionResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Detect whether an example value set is available for these columns
+  const exampleSetKey = useMemo(
+    () => detectExampleSet(featureColumns),
+    [featureColumns],
+  );
+
+  const loadExampleValues = useCallback(() => {
+    if (!exampleSetKey) return;
+    const examples = EXAMPLE_VALUES[exampleSetKey];
+    setInputValues(prev => {
+      const next = { ...prev };
+      for (const col of featureColumns) {
+        if (examples[col] !== undefined) {
+          next[col] = examples[col];
+        }
+      }
+      return next;
+    });
+  }, [exampleSetKey, featureColumns]);
 
   const handlePredict = useCallback(async () => {
     setPredicting(true);
@@ -249,10 +294,23 @@ function PredictionPanel({ project, model, isClustering }: {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <Play className="h-4 w-4" />
-            Eingabewerte
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Play className="h-4 w-4" />
+              Eingabewerte
+            </CardTitle>
+            {exampleSetKey && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={loadExampleValues}
+                disabled={predicting}
+              >
+                <Lightbulb className="h-3.5 w-3.5 mr-1" />
+                Beispielwerte laden
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           {featureColumns.length === 0 ? (
@@ -266,7 +324,7 @@ function PredictionPanel({ project, model, isClustering }: {
                   <Label className="text-sm">{col}</Label>
                   <Input
                     className="mt-1"
-                    placeholder={`Wert für ${col}`}
+                    placeholder={PLACEHOLDER_HINTS[col] ?? 'Wert eingeben'}
                     value={inputValues[col] ?? ''}
                     onChange={(e) => setInputValues(prev => ({
                       ...prev,
