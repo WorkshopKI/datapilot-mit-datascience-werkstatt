@@ -63,7 +63,7 @@ function SidebarLayoutInner({ children, sidebarWidth, onResize }: {
   }, [onResize]);
 
   return (
-    <div className="min-h-screen flex w-full">
+    <div className="h-screen flex w-full">
       {/* Sidebar nur auf Desktop */}
       <div className="hidden md:block">
         <AppSidebar />
@@ -80,13 +80,13 @@ function SidebarLayoutInner({ children, sidebarWidth, onResize }: {
         </div>
       )}
 
-      <main className="flex-1 flex flex-col">
+      <main className="flex-1 flex flex-col min-h-0">
         <header className="hidden md:flex h-14 items-center justify-between border-b px-4 bg-background sticky top-0 z-10 shadow-sm">
           <SidebarTrigger />
           <ThemeToggle />
         </header>
 
-        <div className="flex-1 overflow-auto pb-20 md:pb-0">
+        <div className="flex-1 overflow-auto min-h-0 pb-20 md:pb-0">
           {children}
         </div>
       </main>

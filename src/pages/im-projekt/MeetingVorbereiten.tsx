@@ -122,9 +122,8 @@ export default function MeetingPrep() {
           {/* Info Note */}
           <div className="mt-6 md:mt-8 p-3 md:p-4 bg-muted/50 rounded-lg text-sm text-muted-foreground">
             <p>
-              💡 <strong>Tipp:</strong> Die Checkboxen sind nur für diese Session – 
-              sie werden nicht gespeichert. Exportiere das Dokument als PDF oder 
-              kopiere es, um es zu teilen.
+              💡 <strong>Tipp:</strong> Deine Checkboxen bleiben nur während dieser Browser-Sitzung erhalten.
+              Nutze die Export-Funktionen (PDF, Word, Kopieren), um deine Vorbereitung dauerhaft zu sichern.
             </p>
           </div>
         </>

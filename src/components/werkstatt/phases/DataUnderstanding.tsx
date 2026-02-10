@@ -366,19 +366,14 @@ export function DataUnderstanding({ project, onUpdateProject }: DataUnderstandin
           )}
         </div>
 
-        {/* Relevante Begriffe inline */}
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
-          <span className="font-medium">Relevante Begriffe:</span>
-          <GlossaryLink term="Deskriptive Statistik" termId="mittelwert" />
-          <span>·</span>
-          <GlossaryLink term="Fehlende Werte" termId="fehlende-werte" />
-          <span>·</span>
-          <GlossaryLink term="Ausreißer" termId="ausreisser" />
-          <span>·</span>
-          <GlossaryLink term="Korrelation" />
-          <span>·</span>
-          <GlossaryLink term="Verteilung" termId="normalverteilung" />
-        </div>
+        {/* Relevante Begriffe (Pattern 11) */}
+        <GlossaryTermsCard terms={[
+          { term: 'Deskriptive Statistik', termId: 'mittelwert' },
+          { term: 'Fehlende Werte', termId: 'fehlende-werte' },
+          { term: 'Ausreißer', termId: 'ausreisser' },
+          { term: 'Korrelation' },
+          { term: 'Verteilung', termId: 'normalverteilung' },
+        ]} />
       </div>
     );
   }

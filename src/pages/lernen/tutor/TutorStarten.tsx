@@ -7,6 +7,7 @@ import { tutorPrompt } from "@/data/tutorPrompt";
 import { Rocket, Copy, ExternalLink, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useProgress } from "@/hooks/useProgress";
+import { TutorTabs } from "@/components/tutor/TutorTabs";
 
 type ChatbotKey = keyof typeof chatbotUrls;
 
@@ -50,7 +51,8 @@ export default function TutorStarten() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-4 md:py-8 max-w-2xl">
+    <div className="container mx-auto px-4 py-4 md:py-8 max-w-4xl">
+      <TutorTabs activeTab="starten" />
       <h1 className="text-2xl md:text-4xl font-bold mb-2 text-center">Tutor starten</h1>
       <p className="text-base md:text-lg text-muted-foreground mb-4 md:mb-8 text-center">
         Wähle deinen Chatbot und starte das interaktive Rollenspiel.

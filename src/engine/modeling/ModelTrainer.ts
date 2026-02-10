@@ -316,6 +316,12 @@ ${importLine}
 ${metricsImports}
 
 _target = "${targetColumn}"
+
+# Fallback: if df_train/df_test don't exist, split df automatically
+if 'df_train' not in dir() or 'df_test' not in dir():
+    from sklearn.model_selection import train_test_split as _tts
+    df_train, df_test = _tts(df, test_size=0.2, random_state=42)
+
 X_train = df_train.drop(columns=[_target])
 y_train = df_train[_target]
 X_test = df_test.drop(columns=[_target])
@@ -503,6 +509,11 @@ print(f"RMSE: {rmse:.4f}")`;
 
     return `${importLine}
 ${metricsImports}
+
+# Falls kein Train-Test-Split: automatisch 80/20 aufteilen
+if 'df_train' not in dir():
+    from sklearn.model_selection import train_test_split
+    df_train, df_test = train_test_split(df, test_size=0.2, random_state=42)
 
 # Features und Zielvariable trennen
 X_train = df_train.drop(columns=["${targetColumn}"])

@@ -85,6 +85,16 @@ const navigationGroups = [
     ],
   },
   {
+    id: "ki-assistenten",
+    title: "KI-Assistenten",
+    icon: Bot,
+    href: "/ki-assistenten",
+    items: [
+      { id: "ki-tutor", label: "KI Tutor", href: "/ki-assistenten/tutor", icon: GraduationCap, badge: "Prompt" },
+      { id: "ki-copilot", label: "KI Copilot", href: "/ki-assistenten/copilot", icon: Handshake, badge: "Prompt" },
+    ],
+  },
+  {
     id: "planen",
     title: "Planen",
     icon: ClipboardList,
@@ -103,16 +113,6 @@ const navigationGroups = [
       { id: "meeting", label: "Meeting vorbereiten", href: "/im-projekt/meeting", icon: Calendar },
       { id: "stakeholder", label: "Stakeholder befragen", href: "/im-projekt/stakeholder", icon: MessageSquare },
       { id: "roi", label: "ROI berechnen", href: "/im-projekt/roi", icon: Calculator },
-    ],
-  },
-  {
-    id: "ki-assistenten",
-    title: "KI-Assistenten",
-    icon: Bot,
-    href: "/ki-assistenten",
-    items: [
-      { id: "ki-tutor", label: "KI Tutor", href: "/ki-assistenten/tutor", icon: GraduationCap, badge: "Prompt" },
-      { id: "ki-copilot", label: "KI Copilot", href: "/ki-assistenten/copilot", icon: Handshake, badge: "Prompt" },
     ],
   },
   {

@@ -47,13 +47,6 @@ export function Deployment({ project, onUpdateProject }: DeploymentProps) {
             </p>
           </CardHeader>
         </Card>
-        <GlossaryTermsCard terms={[
-          { term: 'Deployment' },
-          { term: 'Monitoring' },
-          { term: 'Data Drift', termId: 'data-drift' },
-          { term: 'MLOps' },
-          { term: 'A/B Testing', termId: 'ab-testing' },
-        ]} />
       </div>
     );
   }

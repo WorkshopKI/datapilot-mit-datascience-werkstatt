@@ -1,19 +1,13 @@
-import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { modusTipps } from "@/data/content";
-import { User, Users, Info, ArrowLeft } from "lucide-react";
+import { User, Users, Info } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { TutorTabs } from "@/components/tutor/TutorTabs";
 
 export default function TutorModus() {
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
-      <Link
-        to="/lernen/tutor"
-        className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-primary mb-4"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        Zurück zur Übersicht
-      </Link>
+      <TutorTabs activeTab="modus" />
       <h1 className="text-3xl md:text-4xl font-bold mb-2">Einzel & Team</h1>
       <p className="text-lg text-muted-foreground mb-8">
         Der Tutor funktioniert sowohl allein als auch im Team.

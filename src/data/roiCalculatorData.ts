@@ -17,12 +17,19 @@ export interface CalculatorSection {
   fields: CalculatorField[];
 }
 
+export interface ScenarioPreset {
+  label: string;
+  emoji: string;
+  values: Record<string, number>;
+}
+
 export interface ROICalculatorDefinition {
   id: string;
   title: string;
   emoji: string;
   description: string;
   sections: CalculatorSection[];
+  scenarios?: ScenarioPreset[];
 }
 
 // ========== Churn ROI Calculator ==========
@@ -54,6 +61,11 @@ export const churnCalculatorDefinition: ROICalculatorDefinition = {
         { id: "modelPrecision", label: "Precision mit Modell", unit: "%", defaultValue: 60, min: 1, max: 100, hint: "Trefferquote mit ML-Priorisierung" },
       ],
     },
+  ],
+  scenarios: [
+    { label: "Startup", emoji: "🚀", values: { customerBase: 5000, churnRate: 12, clv: 200, callsPerWeek: 50, successRate: 25, baselinePrecision: 15, modelPrecision: 55 } },
+    { label: "KMU", emoji: "🏢", values: { customerBase: 50000, churnRate: 5, clv: 500, callsPerWeek: 200, successRate: 30, baselinePrecision: 20, modelPrecision: 60 } },
+    { label: "Enterprise", emoji: "🏦", values: { customerBase: 500000, churnRate: 2, clv: 1200, callsPerWeek: 500, successRate: 35, baselinePrecision: 25, modelPrecision: 70 } },
   ],
 };
 
@@ -149,6 +161,11 @@ export const fraudCalculatorDefinition: ROICalculatorDefinition = {
         { id: "modelPrecision", label: "Precision mit Modell", unit: "%", defaultValue: 25, min: 0.1, max: 100, step: 0.1, hint: "Trefferquote mit ML-Modell" },
       ],
     },
+  ],
+  scenarios: [
+    { label: "E-Commerce", emoji: "🛒", values: { transactionsPerMonth: 500000, fraudRate: 0.3, avgFraudAmount: 150, reviewCapacity: 2000, recoveryRate: 70, baselinePrecision: 3, modelPrecision: 20 } },
+    { label: "Versicherung", emoji: "🛡️", values: { transactionsPerMonth: 100000, fraudRate: 1.5, avgFraudAmount: 2000, reviewCapacity: 3000, recoveryRate: 85, baselinePrecision: 8, modelPrecision: 35 } },
+    { label: "Bank", emoji: "🏦", values: { transactionsPerMonth: 5000000, fraudRate: 0.1, avgFraudAmount: 800, reviewCapacity: 10000, recoveryRate: 90, baselinePrecision: 5, modelPrecision: 30 } },
   ],
 };
 
@@ -246,6 +263,11 @@ export const conversionCalculatorDefinition: ROICalculatorDefinition = {
         { id: "uplift", label: "Conversion-Uplift durch Modell", unit: "%", defaultValue: 15, min: 1, max: 100, hint: "Wie viel besser konvertiert die targetierte Gruppe?" },
       ],
     },
+  ],
+  scenarios: [
+    { label: "Blog / Medien", emoji: "📰", values: { monthlyVisitors: 200000, baselineConversion: 1.0, avgOrderValue: 15, campaignReach: 20, campaignCostPerUser: 0.02, uplift: 10 } },
+    { label: "Online-Shop", emoji: "🛍️", values: { monthlyVisitors: 500000, baselineConversion: 2.5, avgOrderValue: 75, campaignReach: 30, campaignCostPerUser: 0.05, uplift: 15 } },
+    { label: "SaaS", emoji: "☁️", values: { monthlyVisitors: 50000, baselineConversion: 3.0, avgOrderValue: 500, campaignReach: 40, campaignCostPerUser: 0.10, uplift: 20 } },
   ],
 };
 
@@ -345,6 +367,11 @@ export const demandCalculatorDefinition: ROICalculatorDefinition = {
         { id: "forecastImprovement", label: "Forecast-Verbesserung", unit: "%", defaultValue: 30, min: 5, max: 80, hint: "Um wie viel wird der WMAPE reduziert?" },
       ],
     },
+  ],
+  scenarios: [
+    { label: "Einzelhandel", emoji: "🏪", values: { skuCount: 5000, avgInventoryValue: 200, annualRevenue: 10000000, stockoutRate: 8, overstockRate: 20, obsolescenceRate: 8, forecastImprovement: 25 } },
+    { label: "Großhandel", emoji: "🏭", values: { skuCount: 15000, avgInventoryValue: 800, annualRevenue: 100000000, stockoutRate: 4, overstockRate: 12, obsolescenceRate: 3, forecastImprovement: 35 } },
+    { label: "Pharma", emoji: "💊", values: { skuCount: 3000, avgInventoryValue: 2000, annualRevenue: 200000000, stockoutRate: 2, overstockRate: 10, obsolescenceRate: 15, forecastImprovement: 30 } },
   ],
 };
 

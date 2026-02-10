@@ -98,8 +98,8 @@ export default function Grundlagen() {
   return (
     <div className="container mx-auto px-4 py-4 md:py-8">
       {/* Header + CTA Buttons */}
-      <div className="max-w-4xl mx-auto mb-6">
-        <h1 className="text-2xl md:text-4xl font-bold mb-2 md:mb-4">Grundlagen</h1>
+      <div className="max-w-5xl mx-auto mb-6">
+        <h1 className="text-2xl md:text-3xl font-bold mb-2 md:mb-4">Grundlagen</h1>
         <p className="text-base md:text-lg text-muted-foreground">
           Alles Wichtige zu Data Science – von der Definition bis zum Projektmanagement.
         </p>
@@ -124,7 +124,7 @@ export default function Grundlagen() {
       {/* Grid: Content + Sticky ToC Sidebar */}
       <div className="max-w-5xl mx-auto grid lg:grid-cols-[1fr,240px] gap-6">
         {/* Main content column */}
-        <div className="space-y-8 max-w-4xl">
+        <div className="space-y-4 max-w-4xl">
 
           {/* ========== Section 1: Was ist Data Science? ========== */}
           <Collapsible
@@ -133,8 +133,8 @@ export default function Grundlagen() {
           >
             <section id="was-ist-ds" className="scroll-mt-16 md:scroll-mt-20">
               <CollapsibleTrigger asChild>
-                <button className="flex items-center justify-between w-full text-left group mb-4">
-                  <h2 className="text-2xl font-bold">Was ist Data Science?</h2>
+                <button className="flex items-center justify-between w-full text-left group mb-2">
+                  <h2 className="text-xl font-semibold">Was ist Data Science?</h2>
                   <ChevronDown
                     className={cn(
                       "h-5 w-5 text-muted-foreground transition-transform",
@@ -187,8 +187,8 @@ export default function Grundlagen() {
           >
             <section id="crisp-dm" className="scroll-mt-16 md:scroll-mt-20">
               <CollapsibleTrigger asChild>
-                <button className="flex items-center justify-between w-full text-left group mb-4">
-                  <h2 className="text-2xl font-bold">Der CRISP-DM Prozess</h2>
+                <button className="flex items-center justify-between w-full text-left group mb-2">
+                  <h2 className="text-xl font-semibold">Der CRISP-DM Prozess</h2>
                   <ChevronDown
                     className={cn(
                       "h-5 w-5 text-muted-foreground transition-transform",
@@ -246,8 +246,8 @@ export default function Grundlagen() {
           >
             <section id="rollen" className="scroll-mt-16 md:scroll-mt-20">
               <CollapsibleTrigger asChild>
-                <button className="flex items-center justify-between w-full text-left group mb-4">
-                  <h2 className="text-2xl font-bold">Rollen im DS-Projekt</h2>
+                <button className="flex items-center justify-between w-full text-left group mb-2">
+                  <h2 className="text-xl font-semibold">Rollen im DS-Projekt</h2>
                   <ChevronDown
                     className={cn(
                       "h-5 w-5 text-muted-foreground transition-transform",
@@ -329,8 +329,8 @@ export default function Grundlagen() {
           >
             <section id="change-management" className="scroll-mt-16 md:scroll-mt-20">
               <CollapsibleTrigger asChild>
-                <button className="flex items-center justify-between w-full text-left group mb-4">
-                  <h2 className="text-2xl font-bold">Change Management</h2>
+                <button className="flex items-center justify-between w-full text-left group mb-2">
+                  <h2 className="text-xl font-semibold">Change Management</h2>
                   <ChevronDown
                     className={cn(
                       "h-5 w-5 text-muted-foreground transition-transform",
@@ -495,8 +495,8 @@ export default function Grundlagen() {
           >
             <section id="projektmanagement" className="scroll-mt-16 md:scroll-mt-20">
               <CollapsibleTrigger asChild>
-                <button className="flex items-center justify-between w-full text-left group mb-4">
-                  <h2 className="text-2xl font-bold">Projektmanagement</h2>
+                <button className="flex items-center justify-between w-full text-left group mb-2">
+                  <h2 className="text-xl font-semibold">Projektmanagement</h2>
                   <ChevronDown
                     className={cn(
                       "h-5 w-5 text-muted-foreground transition-transform",
@@ -581,8 +581,8 @@ export default function Grundlagen() {
         </div>
 
         {/* Sticky ToC Sidebar */}
-        <aside className="hidden lg:block">
-          <nav className="sticky top-20 space-y-1">
+        <aside className="hidden lg:block relative">
+          <nav className="sticky top-4 space-y-1">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 px-2">
               Inhalt
             </p>

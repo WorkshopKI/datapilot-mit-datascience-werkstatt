@@ -134,6 +134,42 @@ export default function TutorStartrampe() {
         </AlertDescription>
       </Alert>
 
+      {/* Quick-Start CTA (above fold) */}
+      <div className="mb-6 p-4 rounded-xl border-2 border-primary bg-primary/5">
+        <div className="flex flex-col sm:flex-row items-center gap-3">
+          <div className="flex gap-2 shrink-0">
+            {chatbots.map((bot) => (
+              <button
+                key={bot.id}
+                onClick={() => setSelectedBot(bot.id)}
+                className={cn(
+                  "px-3 py-1.5 rounded-lg border text-sm font-medium transition-all",
+                  selectedBot === bot.id
+                    ? "border-primary bg-background"
+                    : "border-muted bg-background hover:border-primary/50"
+                )}
+              >
+                {selectedBot === bot.id && <Check className="h-3 w-3 inline mr-1" />}
+                {bot.name}
+              </button>
+            ))}
+          </div>
+          <Button onClick={handleStart} className="gap-2 w-full sm:w-auto">
+            {isCopied ? (
+              <>
+                <Check className="h-4 w-4" />
+                Prompt kopiert!
+              </>
+            ) : (
+              <>
+                <Copy className="h-4 w-4" />
+                Prompt kopieren & starten
+              </>
+            )}
+          </Button>
+        </div>
+      </div>
+
       {/* Abschnitt 1: Rollen */}
       <section className="mb-6 md:mb-10">
         <h2 className="text-xl font-semibold mb-4">Diese Rollen triffst du</h2>

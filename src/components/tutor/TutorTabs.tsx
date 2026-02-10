@@ -7,10 +7,12 @@ const tutorTabs = [
   { id: "phasen", label: "Phasen", shortLabel: "Phasen", path: "/ki-assistenten/tutor/phasen" },
   { id: "befehle", label: "Befehle", shortLabel: "Befehle", path: "/ki-assistenten/tutor/befehle" },
   { id: "beispiel", label: "Beispiel-Dialog", shortLabel: "Beispiel", path: "/ki-assistenten/tutor/beispiel" },
+  { id: "modus", label: "Einzel & Team", shortLabel: "Modus", path: "/ki-assistenten/tutor/modus" },
+  { id: "starten", label: "Tutor starten", shortLabel: "Starten", path: "/ki-assistenten/tutor/starten" },
 ];
 
 interface TutorTabsProps {
-  activeTab: "uebersicht" | "was-kann" | "phasen" | "befehle" | "beispiel";
+  activeTab: "uebersicht" | "was-kann" | "phasen" | "befehle" | "beispiel" | "modus" | "starten";
 }
 
 export function TutorTabs({ activeTab }: TutorTabsProps) {

@@ -348,6 +348,23 @@ describe('ModelTrainer', () => {
   });
 
   // ===========================================
+  // buildTrainingCode - df_train fallback guard
+  // ===========================================
+
+  describe('buildTrainingCode - df_train fallback', () => {
+    it('includes fallback split when df_train is not defined', () => {
+      const code = ModelTrainer.buildTrainingCode(
+        { type: 'random-forest-classifier', hyperparameters: { n_estimators: 100 } },
+        'target',
+        'klassifikation',
+      );
+      expect(code).toContain("if 'df_train' not in dir() or 'df_test' not in dir():");
+      expect(code).toContain('train_test_split as _tts');
+      expect(code).toContain('df_train, df_test = _tts(df, test_size=0.2, random_state=42)');
+    });
+  });
+
+  // ===========================================
   // buildClusteringCode
   // ===========================================
 
