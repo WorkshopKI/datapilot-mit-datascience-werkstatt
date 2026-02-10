@@ -50,17 +50,13 @@ export function Modeling({ project, onUpdateProject }: ModelingProps) {
   const [selectedAlgorithm, setSelectedAlgorithm] = useState<AlgorithmType | ''>('');
   const [hyperparams, setHyperparams] = useState<Record<string, number | string | boolean>>({});
 
+  // Auto-encoding info from training result
+  const [autoEncodedColumns, setAutoEncodedColumns] = useState<string[]>([]);
+
   const isClustering = project.type === 'clustering';
   const hasSplit = project.preparedDataSummary?.hasSplit ?? false;
   const availableAlgorithms = ModelTrainer.getAvailableAlgorithms(project.type);
   const availableColumns = project.preparedDataSummary?.columnNames ?? [];
-
-  // Guard: detect unencoded categorical columns
-  const categoricalCols = project.preparedDataSummary?.categoricalColumns ?? [];
-  const unencodedCols = isClustering
-    ? categoricalCols
-    : categoricalCols.filter(c => c !== targetColumn);
-  const hasUnencodedCols = unencodedCols.length > 0;
 
   const handleAlgorithmSelect = useCallback((algType: AlgorithmType) => {
     setSelectedAlgorithm(algType);
@@ -78,16 +74,9 @@ export function Modeling({ project, onUpdateProject }: ModelingProps) {
     if (!isClustering && !targetColumn) return;
     if (!isClustering && !hasSplit) return;
 
-    if (hasUnencodedCols) {
-      setErrorMessage(
-        `Kategoriale Spalten müssen vor dem Training encodiert werden: ${unencodedCols.join(', ')}. ` +
-        `Gehe zurück zur Data Preparation und wende "Encoding" an.`
-      );
-      return;
-    }
-
     setViewState('training');
     setErrorMessage(null);
+    setAutoEncodedColumns([]);
 
     try {
       const config: AlgorithmConfig = {
@@ -105,6 +94,10 @@ export function Modeling({ project, onUpdateProject }: ModelingProps) {
         return;
       }
 
+      if (result.autoEncodedColumns?.length) {
+        setAutoEncodedColumns(result.autoEncodedColumns);
+      }
+
       const newModels = [...trainedModels, result.model!];
       setTrainedModels(newModels);
 
@@ -116,7 +109,7 @@ export function Modeling({ project, onUpdateProject }: ModelingProps) {
       setErrorMessage(err instanceof Error ? err.message : 'Unbekannter Fehler');
     }
     setViewState('ready');
-  }, [selectedAlgorithm, targetColumn, hyperparams, isClustering, hasSplit, hasUnencodedCols, unencodedCols, trainedModels, project.type, onUpdateProject]);
+  }, [selectedAlgorithm, targetColumn, hyperparams, isClustering, hasSplit, trainedModels, project.type, onUpdateProject]);
 
   const handleRemoveModel = useCallback((modelId: string) => {
     const newModels = trainedModels.filter(m => m.id !== modelId);
@@ -212,20 +205,18 @@ export function Modeling({ project, onUpdateProject }: ModelingProps) {
         </Card>
       )}
 
-      {/* Unencoded categorical columns warning */}
-      {hasUnencodedCols && (
+      {/* Auto-encoding info banner */}
+      {autoEncodedColumns.length > 0 && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
           <div className="flex gap-3">
             <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
             <div className="text-sm">
-              <p className="font-medium text-amber-800 mb-1">Kategoriale Spalten nicht encodiert</p>
+              <p className="font-medium text-amber-800 mb-1">Automatisches Encoding durchgeführt</p>
               <p className="text-amber-700">
-                Dein Datensatz enthält noch nicht-numerische Spalten:{' '}
-                <span className="font-mono font-medium">{unencodedCols.join(', ')}</span>.
-                {' '}Sklearn-Algorithmen können nur mit Zahlen arbeiten. Gehe zurück zur{' '}
-                <span className="font-medium">Data Preparation</span> und wende ein{' '}
-                <GlossaryLink term="Encoding" termId="encoding">Encoding</GlossaryLink>{' '}
-                (One-Hot oder Label) an.
+                Kategoriale Spalten wurden automatisch per One-Hot Encoding umgewandelt:{' '}
+                <span className="font-mono font-medium">{autoEncodedColumns.join(', ')}</span>.
+                {' '}Tipp: In der <span className="font-medium">Data Preparation</span> kannst du die{' '}
+                <GlossaryLink term="Encoding" termId="encoding">Encoding</GlossaryLink>-Methode selbst wählen.
               </p>
             </div>
           </div>

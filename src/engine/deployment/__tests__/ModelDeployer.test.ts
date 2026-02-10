@@ -319,6 +319,30 @@ describe('ModelDeployer.buildPredictionCode', () => {
 
     expect(code).toContain('clusterLabel');
   });
+
+  it('includes auto-encoding with get_dummies for supervised prediction', () => {
+    const code = ModelDeployer.buildPredictionCode(
+      { Alter: 30, Sex: 'male' },
+      'Survived',
+      'klassifikation',
+    );
+
+    expect(code).toContain('_non_numeric_pred');
+    expect(code).toContain('get_dummies(_df_input');
+    expect(code).toContain('reindex(columns=X_train.columns, fill_value=0)');
+  });
+
+  it('includes auto-encoding with get_dummies for clustering prediction', () => {
+    const code = ModelDeployer.buildPredictionCode(
+      { Alter: 30, Farbe: 'rot' },
+      '',
+      'clustering',
+    );
+
+    expect(code).toContain('_non_numeric_pred');
+    expect(code).toContain('get_dummies(_df_input');
+    expect(code).toContain('reindex(columns=df.columns, fill_value=0)');
+  });
 });
 
 // ============================================================

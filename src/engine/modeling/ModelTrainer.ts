@@ -27,6 +27,7 @@ export interface TrainingResult {
   success: boolean;
   model?: TrainedModel;
   error?: string;
+  autoEncodedColumns?: string[];
 }
 
 /** Metadata about an available algorithm */
@@ -185,6 +186,8 @@ export class ModelTrainer {
       return { success: false, error: 'Unerwartetes Ergebnis vom Training' };
     }
 
+    const autoEncodedColumns = raw.autoEncodedColumns as string[] | undefined;
+
     const model: TrainedModel = {
       id: `model-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       algorithmType: config.type,
@@ -198,7 +201,11 @@ export class ModelTrainer {
       targetColumn,
     };
 
-    return { success: true, model };
+    return {
+      success: true,
+      model,
+      autoEncodedColumns: autoEncodedColumns?.length ? autoEncodedColumns : undefined,
+    };
   }
 
   /**
@@ -226,6 +233,8 @@ export class ModelTrainer {
       return { success: false, error: 'Unerwartetes Ergebnis vom Training' };
     }
 
+    const autoEncodedColumns = raw.autoEncodedColumns as string[] | undefined;
+
     const model: TrainedModel = {
       id: `model-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       algorithmType: config.type,
@@ -239,7 +248,11 @@ export class ModelTrainer {
       targetColumn: '',
     };
 
-    return { success: true, model };
+    return {
+      success: true,
+      model,
+      autoEncodedColumns: autoEncodedColumns?.length ? autoEncodedColumns : undefined,
+    };
   }
 
   /**
@@ -309,8 +322,13 @@ X_test = df_test.drop(columns=[_target])
 y_test = df_test[_target]
 
 _non_numeric = X_train.select_dtypes(exclude=['number']).columns.tolist()
+_auto_encoded_cols = []
 if _non_numeric:
-    raise ValueError(f"Kategoriale Spalten muessen vor dem Training encodiert werden: {', '.join(_non_numeric)}. Bitte wende in der Data Preparation ein Encoding (One-Hot oder Label) an.")
+    import pandas as _pd
+    _auto_encoded_cols = _non_numeric.copy()
+    X_train = _pd.get_dummies(X_train, columns=_non_numeric, drop_first=True)
+    X_test = _pd.get_dummies(X_test, columns=_non_numeric, drop_first=True)
+    X_test = X_test.reindex(columns=X_train.columns, fill_value=0)
 
 _model = ${className}(${hyperparamStr})
 _model.fit(X_train, y_train)
@@ -323,6 +341,7 @@ ${featureImportanceCode}
 _result = {
     "metrics": _metrics,
     "featureImportances": _feat_imp,
+    "autoEncodedColumns": _auto_encoded_cols,
 }
 _result
 `.trim();
@@ -343,8 +362,11 @@ ${importLine}
 from sklearn.metrics import silhouette_score
 
 _non_numeric = df.select_dtypes(exclude=['number']).columns.tolist()
+_auto_encoded_cols = []
 if _non_numeric:
-    raise ValueError(f"Kategoriale Spalten muessen vor dem Training encodiert werden: {', '.join(_non_numeric)}. Bitte wende in der Data Preparation ein Encoding (One-Hot oder Label) an.")
+    import pandas as _pd
+    _auto_encoded_cols = _non_numeric.copy()
+    df = _pd.get_dummies(df, columns=_non_numeric, drop_first=True)
 
 _model = ${className}(${hyperparamStr})
 _labels = _model.fit_predict(df)
@@ -360,6 +382,7 @@ if hasattr(_model, 'inertia_'):
 _result = {
     "metrics": _metrics,
     "featureImportances": None,
+    "autoEncodedColumns": _auto_encoded_cols,
 }
 _result
 `.trim();
@@ -487,6 +510,13 @@ y_train = df_train["${targetColumn}"]
 X_test = df_test.drop(columns=["${targetColumn}"])
 y_test = df_test["${targetColumn}"]
 
+# Kategoriale Spalten automatisch encodieren (One-Hot)
+non_numeric = X_train.select_dtypes(exclude=['number']).columns.tolist()
+if non_numeric:
+    X_train = pd.get_dummies(X_train, columns=non_numeric, drop_first=True)
+    X_test = pd.get_dummies(X_test, columns=non_numeric, drop_first=True)
+    X_test = X_test.reindex(columns=X_train.columns, fill_value=0)
+
 # Modell erstellen und trainieren
 model = ${className}(${hyperparamStr})
 model.fit(X_train, y_train)
@@ -508,6 +538,11 @@ ${metricsCode}`;
 
     return `${importLine}
 from sklearn.metrics import silhouette_score
+
+# Kategoriale Spalten automatisch encodieren (One-Hot)
+non_numeric = df.select_dtypes(exclude=['number']).columns.tolist()
+if non_numeric:
+    df = pd.get_dummies(df, columns=non_numeric, drop_first=True)
 
 # Clustering-Modell erstellen und anwenden
 model = ${className}(${hyperparamStr})

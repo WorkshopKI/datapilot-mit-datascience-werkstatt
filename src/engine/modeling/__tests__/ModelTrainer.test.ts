@@ -614,29 +614,33 @@ describe('ModelTrainer', () => {
   // Non-numeric column guard
   // ===========================================
 
-  describe('non-numeric column guard', () => {
-    it('buildTrainingCode includes _non_numeric check after feature setup', () => {
+  describe('auto-encoding of categorical columns', () => {
+    it('buildTrainingCode auto-encodes non-numeric columns with get_dummies', () => {
       const code = ModelTrainer.buildTrainingCode(
         { type: 'logistic-regression', hyperparameters: {} },
         'Ziel', 'klassifikation',
       );
       expect(code).toContain('_non_numeric = X_train.select_dtypes(exclude=[\'number\']).columns.tolist()');
+      expect(code).toContain('_auto_encoded_cols = []');
       expect(code).toContain('if _non_numeric:');
-      expect(code).toContain('raise ValueError');
-      expect(code).toContain('Kategoriale Spalten muessen vor dem Training encodiert werden');
+      expect(code).toContain('get_dummies(X_train');
+      expect(code).toContain('get_dummies(X_test');
+      expect(code).toContain('X_test = X_test.reindex(columns=X_train.columns, fill_value=0)');
+      expect(code).not.toContain('raise ValueError');
     });
 
-    it('buildClusteringCode includes _non_numeric check before fit_predict', () => {
+    it('buildClusteringCode auto-encodes non-numeric columns with get_dummies', () => {
       const code = ModelTrainer.buildClusteringCode(
         { type: 'kmeans', hyperparameters: { n_clusters: 3 } },
       );
       expect(code).toContain('_non_numeric = df.select_dtypes(exclude=[\'number\']).columns.tolist()');
+      expect(code).toContain('_auto_encoded_cols = []');
       expect(code).toContain('if _non_numeric:');
-      expect(code).toContain('raise ValueError');
-      expect(code).toContain('Kategoriale Spalten muessen vor dem Training encodiert werden');
+      expect(code).toContain('get_dummies(df');
+      expect(code).not.toContain('raise ValueError');
     });
 
-    it('_non_numeric check comes before model creation in training code', () => {
+    it('auto-encoding comes before model creation in training code', () => {
       const code = ModelTrainer.buildTrainingCode(
         { type: 'logistic-regression', hyperparameters: {} },
         'Ziel', 'klassifikation',
@@ -648,7 +652,7 @@ describe('ModelTrainer', () => {
       expect(guardIdx).toBeLessThan(modelIdx);
     });
 
-    it('_non_numeric check comes before fit_predict in clustering code', () => {
+    it('auto-encoding comes before fit_predict in clustering code', () => {
       const code = ModelTrainer.buildClusteringCode(
         { type: 'dbscan', hyperparameters: { eps: 0.5 } },
       );
@@ -657,6 +661,100 @@ describe('ModelTrainer', () => {
       expect(guardIdx).toBeGreaterThan(-1);
       expect(fitIdx).toBeGreaterThan(-1);
       expect(guardIdx).toBeLessThan(fitIdx);
+    });
+
+    it('buildTrainingCode includes autoEncodedColumns in result dict', () => {
+      const code = ModelTrainer.buildTrainingCode(
+        { type: 'logistic-regression', hyperparameters: {} },
+        'Ziel', 'klassifikation',
+      );
+      expect(code).toContain('"autoEncodedColumns": _auto_encoded_cols');
+    });
+
+    it('buildClusteringCode includes autoEncodedColumns in result dict', () => {
+      const code = ModelTrainer.buildClusteringCode(
+        { type: 'kmeans', hyperparameters: { n_clusters: 3 } },
+      );
+      expect(code).toContain('"autoEncodedColumns": _auto_encoded_cols');
+    });
+
+    it('trainModel returns autoEncodedColumns when present', async () => {
+      mockPyodideReady();
+      mockRunPythonSuccess({
+        ...makeClassificationResult(),
+        autoEncodedColumns: ['Sex', 'Embarked'],
+      });
+
+      const result = await ModelTrainer.trainModel(
+        { type: 'logistic-regression', hyperparameters: {} },
+        'Survived', 'klassifikation',
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.autoEncodedColumns).toEqual(['Sex', 'Embarked']);
+    });
+
+    it('trainModel omits autoEncodedColumns when empty', async () => {
+      mockPyodideReady();
+      mockRunPythonSuccess({
+        ...makeClassificationResult(),
+        autoEncodedColumns: [],
+      });
+
+      const result = await ModelTrainer.trainModel(
+        { type: 'logistic-regression', hyperparameters: {} },
+        'Ziel', 'klassifikation',
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.autoEncodedColumns).toBeUndefined();
+    });
+
+    it('trainClusteringModel returns autoEncodedColumns when present', async () => {
+      mockPyodideReady();
+      mockRunPythonSuccess({
+        ...makeClusteringResult(),
+        autoEncodedColumns: ['Farbe'],
+      });
+
+      const result = await ModelTrainer.trainClusteringModel(
+        { type: 'kmeans', hyperparameters: { n_clusters: 3 } },
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.autoEncodedColumns).toEqual(['Farbe']);
+    });
+
+    it('trainClusteringModel omits autoEncodedColumns when empty', async () => {
+      mockPyodideReady();
+      mockRunPythonSuccess({
+        ...makeClusteringResult(),
+        autoEncodedColumns: [],
+      });
+
+      const result = await ModelTrainer.trainClusteringModel(
+        { type: 'kmeans', hyperparameters: { n_clusters: 3 } },
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.autoEncodedColumns).toBeUndefined();
+    });
+
+    it('readable training code includes auto-encoding section', () => {
+      const code = ModelTrainer.buildTrainingCode(
+        { type: 'logistic-regression', hyperparameters: {} },
+        'Ziel', 'klassifikation',
+      );
+      // The readable code is inside buildReadableCode (called internally for pythonCode)
+      // but we test buildTrainingCode's execution code here
+      expect(code).toContain('_auto_encoded_cols = _non_numeric.copy()');
+    });
+
+    it('readable clustering code includes auto-encoding section', () => {
+      const code = ModelTrainer.buildClusteringCode(
+        { type: 'kmeans', hyperparameters: { n_clusters: 3 } },
+      );
+      expect(code).toContain('_auto_encoded_cols = _non_numeric.copy()');
     });
   });
 

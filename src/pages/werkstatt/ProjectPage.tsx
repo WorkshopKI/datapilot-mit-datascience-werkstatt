@@ -57,8 +57,8 @@ export default function ProjectPage() {
     };
     const updatedClone = WorkspaceStorage.updateProject(copy.id, mergedUpdates);
 
-    // Silently update URL (no React Router remount)
-    window.history.replaceState(null, '', `/werkstatt/${copy.id}`);
+    // Update URL via React Router so location.pathname updates (sidebar reacts)
+    navigate(`/werkstatt/${copy.id}`, { replace: true });
 
     // Swap project in-place (no remount → component state preserved)
     if (updatedClone) {

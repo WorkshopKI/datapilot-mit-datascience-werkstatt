@@ -296,7 +296,10 @@ import pandas as _pd
 
 _input = ${inputDictStr}
 _df_input = _pd.DataFrame([_input])
-_df_input = _df_input[df.columns]
+_non_numeric_pred = _df_input.select_dtypes(exclude=['number']).columns.tolist()
+if _non_numeric_pred:
+    _df_input = _pd.get_dummies(_df_input, columns=_non_numeric_pred, drop_first=True)
+_df_input = _df_input.reindex(columns=df.columns, fill_value=0)
 
 _pred = _model.predict(_df_input)
 _result = {"prediction": int(_pred[0]), "clusterLabel": int(_pred[0])}
@@ -309,7 +312,10 @@ import pandas as _pd
 
 _input = ${inputDictStr}
 _df_input = _pd.DataFrame([_input])
-_df_input = _df_input[X_train.columns]
+_non_numeric_pred = _df_input.select_dtypes(exclude=['number']).columns.tolist()
+if _non_numeric_pred:
+    _df_input = _pd.get_dummies(_df_input, columns=_non_numeric_pred, drop_first=True)
+_df_input = _df_input.reindex(columns=X_train.columns, fill_value=0)
 
 _pred = _model.predict(_df_input)
 _result = {"prediction": float(_pred[0]) if hasattr(_pred[0], '__float__') else str(_pred[0])}
