@@ -200,25 +200,6 @@ export function DataUnderstanding({ project, onUpdateProject }: DataUnderstandin
   if (viewState === 'no-data') {
     return (
       <div className="space-y-4">
-        {/* Didaktischer Einstieg */}
-        <div className="bg-orange-50 border border-orange-200 rounded-xl p-4">
-          <div className="flex gap-3">
-            <Info className="h-5 w-5 text-orange-500 shrink-0 mt-0.5" />
-            <div className="text-sm">
-              <p className="font-medium text-orange-800 mb-1">Was passiert in dieser Phase?</p>
-              <p className="text-orange-700">
-                Du führst eine{' '}
-                <GlossaryLink term="Explorative Datenanalyse" termId="eda">explorative Datenanalyse (EDA)</GlossaryLink>{' '}
-                durch: Datentypen prüfen,{' '}
-                <GlossaryLink term="Verteilung" termId="normalverteilung">Verteilungen</GlossaryLink>{' '}
-                anschauen,{' '}
-                <GlossaryLink term="Korrelation">Korrelationen</GlossaryLink>{' '}
-                untersuchen und die Datenqualität bewerten.
-              </p>
-            </div>
-          </div>
-        </div>
-
         {/* Empfehlung für Beispielprojekte */}
         {hasRealDataset ? (
           <div className="bg-green-50 border border-green-200 rounded-xl p-4">
@@ -508,22 +489,6 @@ export function DataUnderstanding({ project, onUpdateProject }: DataUnderstandin
             {/* Missing values summary */}
             <MissingValuesSummary columns={result.columns} />
 
-            {/* Tutor tip */}
-            <div className="bg-orange-50 border border-orange-200 rounded-xl p-4">
-              <div className="flex gap-3">
-                <Info className="h-5 w-5 text-orange-500 shrink-0 mt-0.5" />
-                <div className="text-sm">
-                  <p className="font-medium text-orange-800 mb-1">Tipp: Datenverständnis</p>
-                  <p className="text-orange-700">
-                    In dieser Phase geht es darum, die Daten zu verstehen. Schau dir die{' '}
-                    <GlossaryLink term="Deskriptive Statistik" termId="mittelwert">deskriptive Statistik</GlossaryLink>{' '}
-                    an, prüfe auf <GlossaryLink term="Fehlende Werte" termId="fehlende-werte">fehlende Werte</GlossaryLink>{' '}
-                    und <GlossaryLink term="Ausreißer" termId="ausreisser">Ausreißer</GlossaryLink>, und untersuche die{' '}
-                    <GlossaryLink term="Korrelation">Korrelationen</GlossaryLink> zwischen den Features.
-                  </p>
-                </div>
-              </div>
-            </div>
           </div>
         </TabsContent>
 

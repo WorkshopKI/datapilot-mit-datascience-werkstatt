@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { GlossaryLink, GlossaryText } from '../GlossaryLink';
 import { GlossaryTermsCard } from '../shared/GlossaryTermsCard';
 import { LernbereichLink } from '../shared/LernbereichLink';
-import { Plus, Trash2, Edit2, Check, X, Target, Lightbulb, Info, List, BookOpen } from 'lucide-react';
+import { Plus, Trash2, Edit2, Check, X, Target, Lightbulb, List } from 'lucide-react';
 
 interface BusinessUnderstandingProps {
   project: WorkspaceProject;
@@ -35,6 +35,7 @@ export function BusinessUnderstanding({
   
   const [newFeature, setNewFeature] = useState({ name: '', type: 'numerisch' as Feature['type'], description: '' });
   const [editingFeatureId, setEditingFeatureId] = useState<string | null>(null);
+  const [showAllFeatures, setShowAllFeatures] = useState(false);
 
   const handleSaveGoals = () => {
     onUpdateProject({
@@ -57,25 +58,6 @@ export function BusinessUnderstanding({
 
   return (
     <div className="space-y-6">
-      {/* Didaktischer Einstieg */}
-      <div className="bg-orange-50 border border-orange-200 rounded-xl p-4">
-        <div className="flex gap-3">
-          <Info className="h-5 w-5 text-orange-500 shrink-0 mt-0.5" />
-          <div className="text-sm">
-            <p className="font-medium text-orange-800 mb-1">Was passiert in dieser Phase?</p>
-            <p className="text-orange-700">
-              Im{' '}
-              <GlossaryLink term="Business Understanding">Business Understanding</GlossaryLink>{' '}
-              definierst du das Geschäftsziel deines Projekts: Was soll erreicht werden?
-              Welche{' '}
-              <GlossaryLink term="Feature">Features</GlossaryLink>{' '}
-              stehen zur Verfügung? Dies ist der erste Schritt im{' '}
-              <GlossaryLink term="CRISP-DM">CRISP-DM</GlossaryLink>-Prozess.
-            </p>
-          </div>
-        </div>
-      </div>
-
       {/* Business Goal Card */}
       <Card>
         <CardHeader>
@@ -169,42 +151,59 @@ export function BusinessUnderstanding({
         </CardHeader>
         <CardContent>
           {project.features.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Typ</TableHead>
-                  <TableHead>Beschreibung</TableHead>
-                  <TableHead className="w-[100px]">Aktion</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {project.features.map((feature) => (
-                  <TableRow key={feature.id}>
-                    <TableCell className="font-medium">
-                      {feature.name}
-                      {feature.isTarget && (
-                        <Badge variant="secondary" className="ml-2 text-xs">Target</Badge>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{feature.type}</Badge>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">{feature.description}</TableCell>
-                    <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => onRemoveFeature(feature.id)}
-                        className="h-8 w-8 text-destructive hover:text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Typ</TableHead>
+                    <TableHead>Beschreibung</TableHead>
+                    <TableHead className="w-[100px]">Aktion</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {(showAllFeatures ? project.features : project.features.slice(0, 4)).map((feature) => (
+                    <TableRow key={feature.id}>
+                      <TableCell className="font-medium">
+                        {feature.name}
+                        {feature.isTarget && (
+                          <Badge variant="secondary" className="ml-2 text-xs">Target</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{feature.type}</Badge>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">{feature.description}</TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => onRemoveFeature(feature.id)}
+                          className="h-8 w-8 text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              {project.features.length > 4 && (
+                <div className="flex justify-center mt-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowAllFeatures(!showAllFeatures)}
+                    className="gap-1 text-muted-foreground"
+                  >
+                    <List className="h-3.5 w-3.5" />
+                    {showAllFeatures
+                      ? 'Weniger anzeigen'
+                      : `Alle anzeigen (${project.features.length})`}
+                  </Button>
+                </div>
+              )}
+            </>
           ) : (
             <p className="text-sm text-muted-foreground text-center py-4">
               Noch keine Features definiert.

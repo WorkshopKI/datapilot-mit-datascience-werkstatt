@@ -5,8 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { BarChart3, Info, Eye, GitCompare, Code } from 'lucide-react';
-import { GlossaryLink } from '../GlossaryLink';
+import { BarChart3, Eye, GitCompare, Code } from 'lucide-react';
 import { GlossaryTermsCard } from '../shared/GlossaryTermsCard';
 import { LernbereichLink } from '../shared/LernbereichLink';
 import { ClassificationMetrics, RegressionMetrics, ClusteringMetrics } from './evaluation/MetricsPanel';
@@ -204,25 +203,6 @@ export function Evaluation({ project, onUpdateProject }: EvaluationProps) {
           )}
         </TabsContent>
       </Tabs>
-
-      {/* Tutor Tip */}
-      <div className="bg-orange-50 border border-orange-200 rounded-xl p-4">
-        <div className="flex gap-3">
-          <Info className="h-5 w-5 text-orange-500 shrink-0 mt-0.5" />
-          <div className="text-sm">
-            <p className="font-medium text-orange-800 mb-1">Tipp: Evaluation</p>
-            <p className="text-orange-700">
-              Vergleiche die Modelle nicht nur anhand einer einzelnen Metrik.
-              Bei Klassifikation schaue dir die{' '}
-              <GlossaryLink term="Confusion Matrix" termId="confusion-matrix">Confusion Matrix</GlossaryLink>{' '}
-              an, um zu verstehen, welche Fehler das Modell macht.{' '}
-              <GlossaryLink term="Precision" termId="precision">Precision</GlossaryLink> und{' '}
-              <GlossaryLink term="Recall" termId="recall">Recall</GlossaryLink>{' '}
-              zeigen unterschiedliche Aspekte der Modellqualität.
-            </p>
-          </div>
-        </div>
-      </div>
 
       <GlossaryTermsCard terms={GLOSSARY_TERMS} />
       <LernbereichLink />

@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/select';
 import {
   Brain, Loader2, AlertTriangle, Play, Trash2,
-  Info, AlertCircle, Settings2, Clock, CheckCircle2, BookOpen,
+  AlertCircle, Settings2, Clock, CheckCircle2,
 } from 'lucide-react';
 import { GlossaryLink } from '../GlossaryLink';
 import { GlossaryTermsCard } from '../shared/GlossaryTermsCard';
@@ -322,25 +322,6 @@ export function Modeling({ project, onUpdateProject }: ModelingProps) {
           </CardContent>
         </Card>
       )}
-
-      {/* Tutor Tip */}
-      <div className="bg-orange-50 border border-orange-200 rounded-xl p-4">
-        <div className="flex gap-3">
-          <Info className="h-5 w-5 text-orange-500 shrink-0 mt-0.5" />
-          <div className="text-sm">
-            <p className="font-medium text-orange-800 mb-1">Tipp: Modeling</p>
-            <p className="text-orange-700">
-              Trainiere mehrere Modelle mit verschiedenen Algorithmen und{' '}
-              <GlossaryLink term="Hyperparameter" termId="hyperparameter">Hyperparametern</GlossaryLink>,
-              um zu sehen, welches am besten funktioniert. Beginne mit einem einfachen{' '}
-              <GlossaryLink term="Baseline" termId="baseline">Baseline</GlossaryLink>-Modell
-              und steigere dann die Komplexität.
-              Achte auf <GlossaryLink term="Overfitting" termId="overfitting">Overfitting</GlossaryLink> –
-              wenn das Modell auf den Trainingsdaten viel besser ist als auf den Testdaten.
-            </p>
-          </div>
-        </div>
-      </div>
 
       <GlossaryTermsCard terms={GLOSSARY_TERMS} />
 
