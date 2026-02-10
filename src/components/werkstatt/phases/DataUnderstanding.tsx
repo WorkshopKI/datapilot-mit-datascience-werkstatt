@@ -1,24 +1,23 @@
 // Data Understanding Phase – CSV-Import + Analyse via Pyodide
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  Table, TableBody, TableCell, TableHead,
-  TableHeader, TableRow,
-} from '@/components/ui/table';
 import { Slider } from '@/components/ui/slider';
 import {
   Database, Upload, FlaskConical,
-  Info, Loader2, AlertTriangle, RefreshCw, BookOpen, SlidersHorizontal,
+  Info, Loader2, AlertTriangle, RefreshCw, SlidersHorizontal,
 } from 'lucide-react';
 import { GlossaryLink } from '../GlossaryLink';
 import { GlossaryTermsCard } from '../shared/GlossaryTermsCard';
 import { LernbereichLink } from '../shared/LernbereichLink';
-import { formatNumber, getCorrelationColor, getMissingBarColor } from '../shared/formatUtils';
+import { getCorrelationColor } from '../shared/formatUtils';
 import { DataPreviewTable } from '../shared/DataPreviewTable';
+import { CorrelationHeatmap } from './understanding/CorrelationHeatmap';
+import { StatisticsTables } from './understanding/StatisticsTables';
+import { MissingValuesSummary, MissingValuesBars } from './understanding/MissingValuesCard';
 import { DataImportZone } from '../DataImportZone';
 import { usePyodide } from '@/hooks/usePyodide';
 import { DataAnalyzer } from '@/engine/data/DataAnalyzer';
@@ -251,18 +250,18 @@ export function DataUnderstanding({ project, onUpdateProject }: DataUnderstandin
         <div className="grid md:grid-cols-2 gap-4">
           {/* CSV-Import */}
           <Card className="hover:shadow-md hover:border-orange-200 transition-all">
-            <CardHeader className="pb-3">
+            <CardContent className="pt-6 space-y-3">
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-lg bg-orange-50">
                   <Upload className="h-5 w-5 text-orange-500" />
                 </div>
-                <CardTitle className="text-base">Eigene Daten importieren</CardTitle>
+                <div>
+                  <p className="font-semibold text-base">Eigene Daten importieren</p>
+                  <p className="text-sm text-muted-foreground">
+                    Lade eine CSV-Datei hoch, um deine eigenen Daten zu analysieren.
+                  </p>
+                </div>
               </div>
-              <p className="text-sm text-muted-foreground">
-                Lade eine CSV-Datei hoch, um deine eigenen Daten zu analysieren.
-              </p>
-            </CardHeader>
-            <CardContent className="space-y-3">
               <DataImportZone onImport={handleCSVImport} accept=".csv" />
               <p className="text-xs text-muted-foreground flex items-center gap-1">
                 <Info className="h-3 w-3" />
@@ -274,19 +273,19 @@ export function DataUnderstanding({ project, onUpdateProject }: DataUnderstandin
           {/* Daten generieren / laden */}
           {hasRealDataset ? (
             <Card className="hover:shadow-md transition-all border-primary border-2">
-              <CardHeader className="pb-3">
+              <CardContent className="pt-6 space-y-4">
                 <div className="flex items-center gap-3">
                   <div className="p-2 rounded-lg bg-green-50">
                     <Database className="h-5 w-5 text-green-600" />
                   </div>
-                  <CardTitle className="text-base">Kursdaten laden</CardTitle>
-                  <Badge className="bg-primary text-primary-foreground">Empfohlen</Badge>
+                  <div>
+                    <p className="font-semibold text-base">Kursdaten laden</p>
+                    <Badge className="bg-primary text-primary-foreground">Empfohlen</Badge>
+                  </div>
                 </div>
                 <p className="text-sm text-muted-foreground">
                   {DataGenerator.getRealDatasetLabel(project.features)} – echte Daten für den CRISP-DM-Zyklus.
                 </p>
-              </CardHeader>
-              <CardContent className="space-y-4">
                 <div className="flex items-center gap-2">
                   <Badge variant="secondary">{project.type}</Badge>
                   <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
@@ -304,21 +303,21 @@ export function DataUnderstanding({ project, onUpdateProject }: DataUnderstandin
             </Card>
           ) : (
             <Card className={`hover:shadow-md transition-all ${showSyntheticHint ? 'border-primary border-2' : 'hover:border-orange-200'}`}>
-              <CardHeader className="pb-3">
+              <CardContent className="pt-6 space-y-4">
                 <div className="flex items-center gap-3">
                   <div className="p-2 rounded-lg bg-orange-50">
                     <FlaskConical className="h-5 w-5 text-orange-500" />
                   </div>
-                  <CardTitle className="text-base">Synthetische Daten generieren</CardTitle>
-                  {showSyntheticHint && (
-                    <Badge className="bg-primary text-primary-foreground">Empfohlen</Badge>
-                  )}
+                  <div>
+                    <p className="font-semibold text-base">Synthetische Daten generieren</p>
+                    {showSyntheticHint && (
+                      <Badge className="bg-primary text-primary-foreground">Empfohlen</Badge>
+                    )}
+                  </div>
                 </div>
                 <p className="text-sm text-muted-foreground">
                   Erzeuge realistische Beispieldaten passend zu deinem Projekttyp – ideal zum Lernen und Ausprobieren.
                 </p>
-              </CardHeader>
-              <CardContent className="space-y-4">
                 <div className="flex items-center gap-2">
                   <Badge variant="secondary">{project.type}</Badge>
                   <span className="text-xs text-muted-foreground">{genRowCount} Zeilen</span>
@@ -454,8 +453,6 @@ export function DataUnderstanding({ project, onUpdateProject }: DataUnderstandin
 
   // --- Render: Ready (analysis result available) ---
   const result = analysisResult!;
-  const totalMissing = result.columns.reduce((sum, col) => sum + col.missing, 0);
-  const columnsWithMissing = result.columns.filter(c => c.missing > 0).length;
 
   return (
     <div className="space-y-4">
@@ -509,44 +506,7 @@ export function DataUnderstanding({ project, onUpdateProject }: DataUnderstandin
             </Card>
 
             {/* Missing values summary */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4" />
-                  <GlossaryLink term="Fehlende Werte" termId="fehlende-werte" />
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {totalMissing === 0 ? (
-                  <p className="text-green-700 bg-green-50 border border-green-200 rounded-xl p-3 text-sm">
-                    Keine fehlenden Werte gefunden – der Datensatz ist vollständig.
-                  </p>
-                ) : (
-                  <div className="space-y-2">
-                    <p className="text-amber-700 bg-amber-50 border border-amber-200 rounded-xl p-3 text-sm">
-                      {totalMissing} fehlende Werte in {columnsWithMissing} Spalte{columnsWithMissing > 1 ? 'n' : ''} gefunden.
-                    </p>
-                    {result.columns
-                      .filter(c => c.missing > 0)
-                      .sort((a, b) => b.missingPercent - a.missingPercent)
-                      .map(col => (
-                        <div key={col.name} className="flex items-center gap-3">
-                          <span className="text-sm w-32 truncate font-mono">{col.name}</span>
-                          <div className="flex-1 h-4 bg-gray-100 rounded-full overflow-hidden">
-                            <div
-                              className={`h-full rounded-full transition-all ${getMissingBarColor(col.missingPercent)}`}
-                              style={{ width: `${Math.max(col.missingPercent, 2)}%` }}
-                            />
-                          </div>
-                          <span className="text-sm text-muted-foreground w-16 text-right">
-                            {col.missingPercent.toFixed(1)}%
-                          </span>
-                        </div>
-                      ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+            <MissingValuesSummary columns={result.columns} />
 
             {/* Tutor tip */}
             <div className="bg-orange-50 border border-orange-200 rounded-xl p-4">
@@ -586,142 +546,25 @@ export function DataUnderstanding({ project, onUpdateProject }: DataUnderstandin
         {/* Tab 3: Statistiken */}
         <TabsContent value="statistiken">
           <div className="space-y-4">
-            {/* Numeric columns */}
-            {result.numericColumns.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Numerische Spalten</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Spalte</TableHead>
-                          <TableHead className="text-right">Anzahl</TableHead>
-                          <TableHead className="text-right">Fehlend</TableHead>
-                          <TableHead className="text-right">
-                            <GlossaryLink term="Mittelwert">Mittelwert</GlossaryLink>
-                          </TableHead>
-                          <TableHead className="text-right">
-                            <GlossaryLink term="Standardabweichung">Std</GlossaryLink>
-                          </TableHead>
-                          <TableHead className="text-right">Min</TableHead>
-                          <TableHead className="text-right">
-                            <GlossaryLink term="Median" termId="median">Q50</GlossaryLink>
-                          </TableHead>
-                          <TableHead className="text-right">Max</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {result.columns
-                          .filter(c => result.numericColumns.includes(c.name))
-                          .map(col => (
-                            <TableRow key={col.name}>
-                              <TableCell className="font-mono font-medium">{col.name}</TableCell>
-                              <TableCell className="text-right">{col.count}</TableCell>
-                              <TableCell className="text-right">
-                                <span className={col.missing > 0 ? 'text-amber-600 font-medium' : ''}>
-                                  {col.missingPercent.toFixed(1)}%
-                                </span>
-                              </TableCell>
-                              <TableCell className="text-right font-mono">{formatNumber(col.mean)}</TableCell>
-                              <TableCell className="text-right font-mono">{formatNumber(col.std)}</TableCell>
-                              <TableCell className="text-right font-mono">{formatNumber(col.min)}</TableCell>
-                              <TableCell className="text-right font-mono">{formatNumber(col.q50)}</TableCell>
-                              <TableCell className="text-right font-mono">{formatNumber(col.max)}</TableCell>
-                            </TableRow>
-                          ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Categorical columns */}
-            {result.categoricalColumns.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Kategoriale Spalten</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Spalte</TableHead>
-                          <TableHead className="text-right">Anzahl</TableHead>
-                          <TableHead className="text-right">Fehlend</TableHead>
-                          <TableHead className="text-right">Eindeutige</TableHead>
-                          <TableHead>Häufigster Wert</TableHead>
-                          <TableHead className="text-right">Häufigkeit</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {result.columns
-                          .filter(c => result.categoricalColumns.includes(c.name))
-                          .map(col => (
-                            <TableRow key={col.name}>
-                              <TableCell className="font-mono font-medium">{col.name}</TableCell>
-                              <TableCell className="text-right">{col.count}</TableCell>
-                              <TableCell className="text-right">
-                                <span className={col.missing > 0 ? 'text-amber-600 font-medium' : ''}>
-                                  {col.missingPercent.toFixed(1)}%
-                                </span>
-                              </TableCell>
-                              <TableCell className="text-right">{col.unique}</TableCell>
-                              <TableCell className="font-mono">{col.topValue ?? '–'}</TableCell>
-                              <TableCell className="text-right">{col.topFrequency ?? '–'}</TableCell>
-                            </TableRow>
-                          ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Missing values bars */}
-            {result.columns.some(c => c.missing > 0) && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Fehlende Werte pro Spalte</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  {result.columns
-                    .sort((a, b) => b.missingPercent - a.missingPercent)
-                    .map(col => (
-                      <div key={col.name} className="flex items-center gap-3">
-                        <span className="text-sm w-36 truncate font-mono">{col.name}</span>
-                        <div className="flex-1 h-3 bg-gray-100 rounded-full overflow-hidden">
-                          <div
-                            className={`h-full rounded-full transition-all ${getMissingBarColor(col.missingPercent)}`}
-                            style={{ width: `${Math.max(col.missingPercent, col.missing > 0 ? 2 : 0)}%` }}
-                          />
-                        </div>
-                        <span className="text-xs text-muted-foreground w-20 text-right">
-                          {col.missing} ({col.missingPercent.toFixed(1)}%)
-                        </span>
-                      </div>
-                    ))}
-                </CardContent>
-              </Card>
-            )}
+            <StatisticsTables
+              columns={result.columns}
+              numericColumns={result.numericColumns}
+              categoricalColumns={result.categoricalColumns}
+            />
+            <MissingValuesBars columns={result.columns} />
           </div>
         </TabsContent>
 
         {/* Tab 4: Korrelationen */}
         <TabsContent value="korrelationen">
           <Card>
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
+            <CardContent className="pt-6 space-y-4">
+              <h3 className="text-base font-semibold flex items-center gap-2">
                 <GlossaryLink term="Korrelation">Korrelationsmatrix</GlossaryLink>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
+              </h3>
+
               {/* Methoden-Erklärung */}
-              <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 mb-4">
+              <div className="bg-orange-50 border border-orange-200 rounded-xl p-4">
                 <div className="flex gap-3">
                   <Info className="h-5 w-5 text-orange-500 shrink-0 mt-0.5" />
                   <div className="text-sm">
@@ -804,88 +647,3 @@ export function DataUnderstanding({ project, onUpdateProject }: DataUnderstandin
     </div>
   );
 }
-
-
-// --- Correlation Heatmap (pure CSS grid) ---
-
-function CorrelationHeatmap({
-  correlations,
-  columns,
-}: {
-  correlations: Record<string, Record<string, number>>;
-  columns: string[];
-}) {
-  const size = columns.length;
-
-  return (
-    <div
-      className="inline-grid gap-px"
-      style={{
-        gridTemplateColumns: `auto repeat(${size}, minmax(3rem, 1fr))`,
-        gridTemplateRows: `auto repeat(${size}, minmax(2.5rem, 1fr))`,
-      }}
-    >
-      {/* Top-left empty cell */}
-      <div />
-      {/* Column headers */}
-      {columns.map(col => (
-        <div
-          key={`h-${col}`}
-          className="text-xs font-mono text-center truncate px-1 flex items-end justify-center pb-1"
-          title={col}
-        >
-          {col.length > 8 ? col.slice(0, 7) + '…' : col}
-        </div>
-      ))}
-      {/* Rows */}
-      {columns.map((rowCol, rowIdx) => (
-        <>
-          {/* Row label */}
-          <div
-            key={`r-${rowCol}`}
-            className="text-xs font-mono truncate pr-2 flex items-center justify-end"
-            title={rowCol}
-          >
-            {rowCol.length > 10 ? rowCol.slice(0, 9) + '…' : rowCol}
-          </div>
-          {/* Cells */}
-          {columns.map((colCol, colIdx) => {
-            // Upper triangle: empty cell
-            if (colIdx > rowIdx) {
-              return <div key={`${rowCol}-${colCol}`} />;
-            }
-
-            // Diagonal: dimmed self-correlation
-            if (colIdx === rowIdx) {
-              return (
-                <div
-                  key={`${rowCol}-${colCol}`}
-                  className="flex items-center justify-center rounded text-xs font-mono bg-muted text-muted-foreground"
-                  title={`${rowCol}: Selbstkorrelation`}
-                >
-                  1.00
-                </div>
-              );
-            }
-
-            // Lower triangle: normal colored cell
-            const value = correlations[rowCol]?.[colCol] ?? 0;
-            return (
-              <div
-                key={`${rowCol}-${colCol}`}
-                className="flex items-center justify-center rounded text-xs font-mono cursor-default"
-                style={{ backgroundColor: getCorrelationColor(value) }}
-                title={`${rowCol} × ${colCol}: ${value.toFixed(4)}`}
-              >
-                <span className={Math.abs(value) > 0.5 ? 'text-white' : 'text-gray-700'}>
-                  {value.toFixed(2)}
-                </span>
-              </div>
-            );
-          })}
-        </>
-      ))}
-    </div>
-  );
-}
-
