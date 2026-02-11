@@ -7,14 +7,18 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from '@/components/ui/table';
+import {
   Rocket, Loader2, AlertCircle, Brain,
   Play, Download, FileCode, FileText, Code,
   CheckCircle2, ClipboardList, ChevronDown, ChevronUp,
-  Lightbulb,
+  Lightbulb, Workflow, AlertTriangle, ArrowRight,
 } from 'lucide-react';
 import { GlossaryTermsCard } from '../shared/GlossaryTermsCard';
 import { LernbereichLink } from '../shared/LernbereichLink';
 import { ModelDeployer } from '@/engine/deployment/ModelDeployer';
+import { KnimeExporter } from '@/engine/deployment/KnimeExporter';
 import type { PredictionResult } from '@/engine/deployment/ModelDeployer';
 import type { WorkspaceProject, TrainedModel } from '@/engine/types';
 
@@ -416,9 +420,16 @@ function CodeExportPanel({ project, model }: {
 }) {
   const [showPyPreview, setShowPyPreview] = useState(false);
   const [showNbPreview, setShowNbPreview] = useState(false);
+  const [showKnimeGuide, setShowKnimeGuide] = useState(false);
+  const [knimeExporting, setKnimeExporting] = useState(false);
 
   const pythonScript = useMemo(
     () => ModelDeployer.buildPythonScript(project, model),
+    [project, model],
+  );
+
+  const knimeGuide = useMemo(
+    () => KnimeExporter.buildKnimeGuide(project, model),
     [project, model],
   );
 
@@ -431,6 +442,17 @@ function CodeExportPanel({ project, model }: {
     const nbContent = ModelDeployer.buildNotebook(project, model);
     const filename = `${project.name.replace(/[^a-zA-Z0-9_-]/g, '_')}.ipynb`;
     ModelDeployer.downloadFile(nbContent, filename, 'application/json');
+  }, [project, model]);
+
+  const handleDownloadKnwf = useCallback(async () => {
+    setKnimeExporting(true);
+    try {
+      const blob = await KnimeExporter.buildKnimeWorkflow(project, model);
+      const filename = `${project.name.replace(/[^a-zA-Z0-9_-]/g, '_')}_KNIME.knwf`;
+      ModelDeployer.downloadBlob(blob, filename);
+    } finally {
+      setKnimeExporting(false);
+    }
   }, [project, model]);
 
   return (
@@ -488,6 +510,91 @@ function CodeExportPanel({ project, model }: {
             <Download className="h-4 w-4" />
             Download .ipynb
           </Button>
+        </CardContent>
+      </Card>
+
+      {/* KNIME Workflow Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Workflow className="h-4 w-4" />
+            KNIME Workflow (.knwf)
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            KNIME-Workflow mit Python Script Nodes. Enthält deine komplette Pipeline,
+            das Modelltraining und die Evaluation als ausführbare Nodes.
+          </p>
+
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
+            <div className="flex gap-2">
+              <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+              <p className="text-sm text-amber-800">
+                <span className="font-medium">Voraussetzung:</span>{' '}
+                KNIME Analytics Platform mit installierter Python-Integration
+                (KNIME Python Extension).
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button
+              onClick={handleDownloadKnwf}
+              disabled={knimeExporting}
+              className="gap-2 bg-orange-500 hover:bg-orange-600"
+            >
+              {knimeExporting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4" />
+              )}
+              Download .knwf
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setShowKnimeGuide(!showKnimeGuide)}
+              className="gap-2"
+            >
+              <Workflow className="h-4 w-4" />
+              {showKnimeGuide ? 'Anleitung ausblenden' : 'KNIME-Anleitung'}
+              {showKnimeGuide ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+            </Button>
+          </div>
+
+          <p className="text-xs text-muted-foreground">
+            Nach dem Import in KNIME: Doppelklick auf den CSV-Reader-Node und den Dateipfad
+            zu deiner CSV-Datei anpassen.
+          </p>
+
+          {showKnimeGuide && (
+            <div className="mt-2">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>DataPilot-Schritt</TableHead>
+                    <TableHead className="w-8 text-center" />
+                    <TableHead>KNIME-Node</TableHead>
+                    <TableHead className="hidden sm:table-cell">Hinweis</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {knimeGuide.map((entry, i) => (
+                    <TableRow key={i}>
+                      <TableCell className="text-sm">{entry.datapilotStep}</TableCell>
+                      <TableCell className="text-center">
+                        <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
+                      </TableCell>
+                      <TableCell className="text-sm font-medium">{entry.knimeNode}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground hidden sm:table-cell">
+                        {entry.knimeHint}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

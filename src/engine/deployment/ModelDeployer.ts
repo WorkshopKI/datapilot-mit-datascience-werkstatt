@@ -257,10 +257,17 @@ def predict(input_data: dict):
   }
 
   /**
-   * Trigger a browser file download.
+   * Trigger a browser file download from a string.
    */
   static downloadFile(content: string, filename: string, mimeType: string): void {
     const blob = new Blob([content], { type: mimeType });
+    ModelDeployer.downloadBlob(blob, filename);
+  }
+
+  /**
+   * Trigger a browser file download from a Blob (e.g. ZIP files).
+   */
+  static downloadBlob(blob: Blob, filename: string): void {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
