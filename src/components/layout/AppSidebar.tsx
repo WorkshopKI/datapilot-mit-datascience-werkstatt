@@ -19,7 +19,6 @@ import {
   Bot,
   FlaskConical,
   Plus,
-  FolderOpen,
   MoreHorizontal,
   Pencil,
   Copy,
@@ -284,26 +283,12 @@ export function AppSidebar() {
   /** Render the Werkstatt submenu with categories */
   const renderWerkstattSubmenu = () => (
     <SidebarMenuSub>
-      {/* Übersicht */}
-      <SidebarMenuSubItem>
-        <SidebarMenuSubButton
-          asChild
-          size="sm"
-          isActive={location.pathname === "/werkstatt"}
-        >
-          <NavLink
-            to="/werkstatt"
-            end
-            className={cn(
-              "flex items-center gap-2 text-muted-foreground hover:text-foreground",
-              location.pathname === "/werkstatt" && "text-primary font-medium"
-            )}
-          >
-            <FolderOpen className="h-3.5 w-3.5" />
-            Übersicht
-          </NavLink>
-        </SidebarMenuSubButton>
-      </SidebarMenuSubItem>
+      {/* Meine Projekte (always visible) */}
+      <li>
+        <p className="px-2 pt-2 pb-1 text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-wider">
+          Meine Projekte ({userProjects.length})
+        </p>
+      </li>
 
       {/* Neues Projekt */}
       <SidebarMenuSubItem>
@@ -325,15 +310,7 @@ export function AppSidebar() {
         </SidebarMenuSubButton>
       </SidebarMenuSubItem>
 
-      {/* Meine Projekte (only if user has projects) */}
-      {userProjects.length > 0 && (
-        <>
-          <li>
-            <p className="px-2 pt-3 pb-1 text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-wider">
-              Meine Projekte ({userProjects.length})
-            </p>
-          </li>
-          {userProjects.map((proj) => {
+      {userProjects.map((proj) => {
             const isActive = location.pathname === `/werkstatt/${proj.id}`;
             const isRenaming = renamingProjectId === proj.id;
             const colorDot = PROJECT_TYPE_COLORS[proj.type] || 'bg-gray-400';
@@ -408,8 +385,6 @@ export function AppSidebar() {
               </SidebarMenuSubItem>
             );
           })}
-        </>
-      )}
 
       {/* Beispielprojekte (always visible) */}
       <li>

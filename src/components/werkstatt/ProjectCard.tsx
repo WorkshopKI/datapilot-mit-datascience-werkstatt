@@ -16,8 +16,9 @@ import { cn } from '@/lib/utils';
 
 interface ProjectCardProps {
   project: WorkspaceProject;
-  onDelete: () => void;
-  onExport: () => void;
+  onDelete?: () => void;
+  onExport?: () => void;
+  isExample?: boolean;
 }
 
 const projectTypeConfig = {
@@ -26,7 +27,7 @@ const projectTypeConfig = {
   clustering: { label: 'Clustering', icon: Users, color: 'text-purple-600' },
 };
 
-export function ProjectCard({ project, onDelete, onExport }: ProjectCardProps) {
+export function ProjectCard({ project, onDelete, onExport, isExample }: ProjectCardProps) {
   const typeConfig = projectTypeConfig[project.type];
   const TypeIcon = typeConfig.icon;
   
@@ -47,28 +48,34 @@ export function ProjectCard({ project, onDelete, onExport }: ProjectCardProps) {
             </Badge>
           </div>
           
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-              >
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={onExport}>
-                <Download className="h-4 w-4 mr-2" />
-                Exportieren
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={onDelete} className="text-destructive">
-                <Trash2 className="h-4 w-4 mr-2" />
-                Löschen
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {(onDelete || onExport) && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {onExport && (
+                  <DropdownMenuItem onClick={onExport}>
+                    <Download className="h-4 w-4 mr-2" />
+                    Exportieren
+                  </DropdownMenuItem>
+                )}
+                {onExport && onDelete && <DropdownMenuSeparator />}
+                {onDelete && (
+                  <DropdownMenuItem onClick={onDelete} className="text-destructive">
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Löschen
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
         
         <CardTitle className="text-lg leading-tight">{project.name}</CardTitle>
@@ -90,9 +97,13 @@ export function ProjectCard({ project, onDelete, onExport }: ProjectCardProps) {
           </div>
         </div>
 
-        {/* Demo Badge or Features Count */}
+        {/* Badge + Action */}
         <div className="flex items-center justify-between">
-          {project.hasDemoData ? (
+          {isExample ? (
+            <Badge variant="secondary" className="text-xs">
+              Beispiel
+            </Badge>
+          ) : project.hasDemoData ? (
             <Badge variant="secondary" className="text-xs">
               Demo-Projekt
             </Badge>
@@ -101,11 +112,11 @@ export function ProjectCard({ project, onDelete, onExport }: ProjectCardProps) {
               {project.features.length} Features
             </span>
           )}
-          
+
           <Button asChild size="sm" className="gap-1">
             <Link to={`/werkstatt/${project.id}`}>
               <Play className="h-3 w-3" />
-              Fortsetzen
+              {isExample ? 'Öffnen' : 'Fortsetzen'}
             </Link>
           </Button>
         </div>

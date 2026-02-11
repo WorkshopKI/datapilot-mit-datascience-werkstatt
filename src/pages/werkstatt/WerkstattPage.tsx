@@ -4,6 +4,7 @@ import { useWorkspace } from '@/hooks/useWorkspace';
 import { OnboardingScreen } from '@/components/werkstatt/OnboardingScreen';
 import { ProjectList } from '@/components/werkstatt/ProjectList';
 import { WorkspaceStatusBar } from '@/components/werkstatt/WorkspaceStatusBar';
+import { WorkspaceStorage } from '@/engine/workspace/WorkspaceStorage';
 import { useToast } from '@/hooks/use-toast';
 
 export default function WerkstattPage() {
@@ -65,6 +66,7 @@ export default function WerkstattPage() {
     <>
       <ProjectList
         projects={projects}
+        exampleProjects={WorkspaceStorage.getExampleProjects()}
         onDelete={handleDelete}
         onExport={exportProject}
         onImport={handleImport}
