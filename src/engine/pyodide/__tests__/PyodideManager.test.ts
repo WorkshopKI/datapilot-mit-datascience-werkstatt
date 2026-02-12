@@ -379,7 +379,7 @@ describe('PyodideManager', () => {
   describe('onProgress', () => {
     it('fires immediately with current state', () => {
       const manager = PyodideManager.getInstance();
-      const states: ReturnType<typeof manager.getState>[] = [];
+      const states: PyodideManager['getState'] extends () => infer R ? R[] : never = [];
 
       manager.onProgress((state) => {
         states.push(state);

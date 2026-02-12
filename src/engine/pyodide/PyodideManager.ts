@@ -304,7 +304,7 @@ export class PyodideManager {
   }
 
   private sendRequest(
-    request: WorkerRequest,
+    request: Omit<WorkerRequest, 'id'> & { id: string },
     timeoutMs: number,
   ): Promise<WorkerResponse> {
     return new Promise<WorkerResponse>((resolve, reject) => {

@@ -100,26 +100,18 @@ export function ProjectCard({ project, onDelete, onExport, isExample }: ProjectC
       </CardHeader>
       
       <CardContent className="pt-2">
-        {/* Progress */}
+        {/* Progress Bar */}
         <div className="mb-4">
-          {completedPhases > 0 ? (
-            <>
-              <div className="flex items-center justify-between text-sm mb-1">
-                <span className="text-muted-foreground">{currentPhaseLabel}</span>
-                <span className="font-medium">{completedPhases}/{totalPhases}</span>
-              </div>
-              <div className="h-2 bg-muted rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-primary transition-all"
-                  style={{ width: `${progressPercent}%` }}
-                />
-              </div>
-            </>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              Startet bei: {currentPhaseLabel}
-            </p>
-          )}
+          <div className="flex items-center justify-between text-sm mb-1">
+            <span className="text-muted-foreground">{currentPhaseLabel}</span>
+            <span className="font-medium">{completedPhases}/{totalPhases}</span>
+          </div>
+          <div className="h-2 bg-muted rounded-full overflow-hidden">
+            <div
+              className="h-full bg-primary transition-all"
+              style={{ width: `${progressPercent}%` }}
+            />
+          </div>
         </div>
 
         {/* Badge + Action */}
