@@ -97,20 +97,21 @@ describe('DataAnalyzer', () => {
       expect(code).toContain('pd.read_csv(StringIO(csv_data))');
     });
 
-    it('embeds CSV content into the Python code', () => {
+    it('embeds CSV content as base64 into the Python code', () => {
       const csv = 'col1,col2\n1,2\n3,4';
       const code = DataAnalyzer.buildAnalyzeCSVCode(csv);
 
-      expect(code).toContain('col1,col2');
-      expect(code).toContain('1,2');
-      expect(code).toContain('3,4');
+      expect(code).toContain('base64.b64decode');
+      expect(code).toContain(btoa(csv));
     });
 
-    it('escapes backslashes in CSV content', () => {
+    it('safely encodes backslashes via base64', () => {
       const csv = 'path\nC:\\Users\\test';
       const code = DataAnalyzer.buildAnalyzeCSVCode(csv);
 
-      expect(code).toContain('C:\\\\Users\\\\test');
+      // Base64 encoding handles all special characters safely
+      expect(code).toContain('base64.b64decode');
+      expect(code).not.toContain('C:\\');
     });
 
     it('generates analysis code for column statistics', () => {
@@ -246,7 +247,7 @@ describe('DataAnalyzer', () => {
       expect(mockRunPython).toHaveBeenCalledOnce();
       const code = mockRunPython.mock.calls[0][0] as string;
       expect(code).toContain('pd.read_csv(StringIO(csv_data))');
-      expect(code).toContain('name,age');
+      expect(code).toContain('base64.b64decode');
     });
 
     it('throws on Python execution error', async () => {

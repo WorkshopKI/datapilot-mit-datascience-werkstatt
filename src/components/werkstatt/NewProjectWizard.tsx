@@ -8,9 +8,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, ArrowRight, Target, TrendingUp, Users, CheckCircle2, FlaskConical } from 'lucide-react';
-import { ProjectType } from '@/engine/types';
+import { ProjectType, Feature } from '@/engine/types';
+import { DATASET_REGISTRY, type DatasetId } from '@/data/openDataRegistry';
 import { cn } from '@/lib/utils';
 import { DataImportZone } from './DataImportZone';
+import { DatasetSelector } from './DatasetSelector';
 import { GlossaryLink } from './GlossaryLink';
 
 interface NewProjectWizardProps {
@@ -19,7 +21,8 @@ interface NewProjectWizardProps {
     description: string;
     type: ProjectType;
     currentPhase: 'business-understanding';
-    features: [];
+    features: Feature[];
+    selectedDataset?: string;
   }) => void;
 }
 
@@ -50,6 +53,16 @@ const projectTypes = [
   },
 ];
 
+/** Map registry feature types to project Feature types */
+function mapFeatureType(regType: 'numerical' | 'categorical' | 'datetime' | 'text'): 'numerisch' | 'kategorial' | 'text' | 'datum' {
+  switch (regType) {
+    case 'numerical': return 'numerisch';
+    case 'categorical': return 'kategorial';
+    case 'datetime': return 'datum';
+    case 'text': return 'text';
+  }
+}
+
 export function NewProjectWizard({ onCreate }: NewProjectWizardProps) {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
@@ -58,19 +71,54 @@ export function NewProjectWizard({ onCreate }: NewProjectWizardProps) {
     description: '',
     type: null as ProjectType | null,
   });
+  const [selectedDataset, setSelectedDataset] = useState<DatasetId | null>(null);
+  const [useOwnData, setUseOwnData] = useState(false);
 
   const canProceedStep1 = formData.type !== null;
-  const canProceedStep2 = formData.name.trim().length >= 3;
+  const canProceedStep2 = selectedDataset !== null || useOwnData;
+  const canProceedStep3 = formData.name.trim().length >= 3;
+
+  const handleDatasetSelect = (datasetId: DatasetId) => {
+    setSelectedDataset(datasetId);
+    setUseOwnData(false);
+    const info = DATASET_REGISTRY[datasetId];
+    if (info) {
+      setFormData(prev => ({
+        ...prev,
+        name: info.name,
+        description: info.businessQuestion,
+      }));
+    }
+  };
+
+  const handleUploadOwn = () => {
+    setSelectedDataset(null);
+    setUseOwnData(true);
+    setStep(3);
+  };
 
   const handleCreate = () => {
     if (!formData.type) return;
-    
+
+    let features: Feature[] = [];
+    if (selectedDataset) {
+      const info = DATASET_REGISTRY[selectedDataset];
+      features = info.featureDefinitions.map((fd, i) => ({
+        id: `f${i + 1}`,
+        name: fd.name,
+        type: mapFeatureType(fd.type),
+        description: fd.description,
+        isTarget: fd.isTarget,
+      }));
+    }
+
     onCreate({
       name: formData.name.trim(),
       description: formData.description.trim(),
       type: formData.type,
       currentPhase: 'business-understanding',
-      features: [],
+      features,
+      selectedDataset: selectedDataset ?? undefined,
     });
   };
 
@@ -87,7 +135,7 @@ export function NewProjectWizard({ onCreate }: NewProjectWizardProps) {
           </div>
           <div>
             <h1 className="text-xl font-bold">Neues Projekt erstellen</h1>
-            <p className="text-sm text-muted-foreground">Schritt {step} von 2</p>
+            <p className="text-sm text-muted-foreground">Schritt {step} von 3</p>
           </div>
         </div>
       </div>
@@ -106,7 +154,15 @@ export function NewProjectWizard({ onCreate }: NewProjectWizardProps) {
           'flex items-center gap-2 px-3 py-1.5 rounded-full text-sm',
           step >= 2 ? 'bg-primary text-primary-foreground' : 'bg-muted'
         )}>
-          <span>2</span>
+          {step > 2 ? <CheckCircle2 className="h-4 w-4" /> : <span>2</span>}
+          <span>Datensatz</span>
+        </div>
+        <div className="h-px w-8 bg-border" />
+        <div className={cn(
+          'flex items-center gap-2 px-3 py-1.5 rounded-full text-sm',
+          step >= 3 ? 'bg-primary text-primary-foreground' : 'bg-muted'
+        )}>
+          <span>3</span>
           <span>Details</span>
         </div>
       </div>
@@ -165,8 +221,40 @@ export function NewProjectWizard({ onCreate }: NewProjectWizardProps) {
         </div>
       )}
 
-      {/* Step 2: Project Details */}
+      {/* Step 2: Dataset Selection */}
       {step === 2 && (
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Datensatz wählen</CardTitle>
+              <CardDescription>
+                Wähle einen Beispiel-Datensatz oder lade eigene Daten hoch.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <DatasetSelector
+                projectType={formData.type!}
+                onSelect={handleDatasetSelect}
+                onUploadOwn={handleUploadOwn}
+              />
+            </CardContent>
+          </Card>
+
+          <div className="flex justify-between pt-4">
+            <Button variant="outline" onClick={() => { setStep(1); setSelectedDataset(null); setUseOwnData(false); }} className="gap-2">
+              <ArrowLeft className="h-4 w-4" />
+              Zurück
+            </Button>
+            <Button disabled={!canProceedStep2} onClick={() => setStep(3)} className="gap-2">
+              Weiter
+              <ArrowRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Step 3: Project Details */}
+      {step === 3 && (
         <div className="space-y-6">
           <Card>
             <CardHeader>
@@ -200,24 +288,26 @@ export function NewProjectWizard({ onCreate }: NewProjectWizardProps) {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Daten importieren (optional)</CardTitle>
-              <CardDescription>
-                Du kannst jetzt Daten hochladen oder später in der Data Understanding Phase.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <DataImportZone onImport={(file) => console.log('Import:', file.name)} />
-            </CardContent>
-          </Card>
+          {useOwnData && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Daten importieren (optional)</CardTitle>
+                <CardDescription>
+                  Du kannst jetzt Daten hochladen oder später in der Data Understanding Phase.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <DataImportZone onImport={(file) => console.log('Import:', file.name)} />
+              </CardContent>
+            </Card>
+          )}
 
           <div className="flex justify-between pt-4">
-            <Button variant="outline" onClick={() => setStep(1)} className="gap-2">
+            <Button variant="outline" onClick={() => setStep(2)} className="gap-2">
               <ArrowLeft className="h-4 w-4" />
               Zurück
             </Button>
-            <Button disabled={!canProceedStep2} onClick={handleCreate} className="gap-2">
+            <Button disabled={!canProceedStep3} onClick={handleCreate} className="gap-2">
               Projekt erstellen
               <ArrowRight className="h-4 w-4" />
             </Button>

@@ -135,24 +135,55 @@ export function ProjectList({ projects, exampleProjects = [], onDelete, onExport
       )}
 
       {/* Beispielprojekte Section */}
-      {exampleProjects.length > 0 && (!searchQuery || filteredExamples.length > 0) && (
-        <div>
-          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4 flex items-center gap-2">
-            <BookOpen className="h-4 w-4" />
-            Beispielprojekte ({exampleProjects.length})
-          </h2>
+      {exampleProjects.length > 0 && (!searchQuery || filteredExamples.length > 0) && (() => {
+        const realExamples = filteredExamples.filter(p => !!p.selectedDataset);
+        const synthExamples = filteredExamples.filter(p => !p.selectedDataset);
 
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredExamples.map((project) => (
-              <ProjectCard
-                key={project.id}
-                project={project}
-                isExample
-              />
-            ))}
+        return (
+          <div>
+            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4 flex items-center gap-2">
+              <BookOpen className="h-4 w-4" />
+              Beispielprojekte ({exampleProjects.length})
+            </h2>
+
+            {/* Echte Daten */}
+            {realExamples.length > 0 && (
+              <div className="mb-6">
+                <p className="text-xs font-semibold text-muted-foreground/70 uppercase tracking-wider mb-3">
+                  Echte Daten ({realExamples.length})
+                </p>
+                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {realExamples.map((project) => (
+                    <ProjectCard
+                      key={project.id}
+                      project={project}
+                      isExample
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Synthetische Szenarien */}
+            {synthExamples.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground/70 uppercase tracking-wider mb-3">
+                  Synthetische Szenarien ({synthExamples.length})
+                </p>
+                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {synthExamples.map((project) => (
+                    <ProjectCard
+                      key={project.id}
+                      project={project}
+                      isExample
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Export Modal */}
       {exportModalProject && (

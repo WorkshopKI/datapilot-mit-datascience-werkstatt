@@ -389,10 +389,40 @@ export function AppSidebar() {
       {/* Beispielprojekte (always visible) */}
       <li>
         <p className="px-2 pt-3 pb-1 text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-wider">
-          Beispielprojekte
+          Echte Daten ({exampleProjects.filter(p => !!p.selectedDataset).length})
         </p>
       </li>
-      {exampleProjects.map((proj) => {
+      {exampleProjects.filter(p => !!p.selectedDataset).map((proj) => {
+        const isActive = location.pathname === `/werkstatt/${proj.id}`;
+        const colorDot = PROJECT_TYPE_COLORS[proj.type] || 'bg-gray-400';
+
+        return (
+          <SidebarMenuSubItem key={proj.id}>
+            <SidebarMenuSubButton
+              asChild
+              size="sm"
+              isActive={isActive}
+            >
+              <NavLink
+                to={`/werkstatt/${proj.id}`}
+                className={cn(
+                  "flex items-center gap-2 text-muted-foreground hover:text-foreground",
+                  isActive && "text-primary font-medium"
+                )}
+              >
+                <span className={cn("h-2 w-2 rounded-full shrink-0", colorDot)} />
+                <span className="truncate">{proj.name}</span>
+              </NavLink>
+            </SidebarMenuSubButton>
+          </SidebarMenuSubItem>
+        );
+      })}
+      <li>
+        <p className="px-2 pt-2 pb-1 text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-wider">
+          Synth. Szenarien ({exampleProjects.filter(p => !p.selectedDataset).length})
+        </p>
+      </li>
+      {exampleProjects.filter(p => !p.selectedDataset).map((proj) => {
         const isActive = location.pathname === `/werkstatt/${proj.id}`;
         const colorDot = PROJECT_TYPE_COLORS[proj.type] || 'bg-gray-400';
 

@@ -25,6 +25,7 @@ import { DataGenerator } from '@/engine/data/DataGenerator';
 import type { DataAnalysisResult } from '@/engine/data/DataAnalyzer';
 import type { WorkspaceProject } from '@/engine/types';
 import { isExampleProject } from '@/engine/workspace/WorkspaceStorage';
+import { DATASET_REGISTRY, type DatasetId } from '@/data/openDataRegistry';
 
 interface DataUnderstandingProps {
   project: WorkspaceProject;
@@ -45,11 +46,18 @@ export function DataUnderstanding({ project, onUpdateProject }: DataUnderstandin
 
   const showSyntheticHint = isExampleProject(project.id) || project.hasDemoData;
 
-  // Detect real dataset (Titanic/Iris) for auto-load
+  // Detect real dataset (Titanic/Iris/Berlin) for auto-load
   const hasRealDataset = useMemo(
-    () => isExampleProject(project.id) && DataGenerator.hasRealDataset(project.features),
-    [project.id, project.features]
+    () => (isExampleProject(project.id) && DataGenerator.hasRealDataset(project.features))
+      || !!project.selectedDataset,
+    [project.id, project.features, project.selectedDataset]
   );
+
+  // Dataset info from registry (for data hints)
+  const datasetInfo = useMemo(() => {
+    const id = project.selectedDataset ?? DataGenerator.detectDatasetId(project.features);
+    return id ? DATASET_REGISTRY[id as DatasetId] : undefined;
+  }, [project.selectedDataset, project.features]);
   const autoLoadAttempted = useRef(false);
 
   // Determine current view state
@@ -445,6 +453,23 @@ export function DataUnderstanding({ project, onUpdateProject }: DataUnderstandin
           Andere Daten
         </Button>
       </div>
+
+      {/* Dataset-specific hints */}
+      {datasetInfo?.dataHints && datasetInfo.dataHints.length > 0 && (
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+          <div className="flex gap-3">
+            <Info className="h-5 w-5 text-blue-500 shrink-0 mt-0.5" />
+            <div className="text-sm">
+              <p className="font-medium text-blue-800 mb-1">Hinweise zu diesem Datensatz</p>
+              <ul className="space-y-0.5">
+                {datasetInfo.dataHints.map((hint, i) => (
+                  <li key={i} className="text-blue-700">• {hint}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Tabs */}
       <Tabs defaultValue="uebersicht">

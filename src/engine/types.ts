@@ -52,6 +52,8 @@ export interface WorkspaceProject {
   trainedModels?: TrainedModel[];
   selectedModelId?: string;
   targetColumn?: string;
+  /** ID of the selected sample dataset (from openDataRegistry) */
+  selectedDataset?: string;
 }
 
 export interface WorkspaceState {

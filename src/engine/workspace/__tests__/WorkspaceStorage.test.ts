@@ -188,17 +188,17 @@ describe('WorkspaceStorage', () => {
   });
 
   describe('getExampleProjects', () => {
-    it('should return 6 example projects', () => {
+    it('should return 10 example projects', () => {
       const examples = WorkspaceStorage.getExampleProjects();
-      expect(examples).toHaveLength(6);
+      expect(examples).toHaveLength(10);
     });
 
-    it('should include 3 classification, 2 regression, 1 clustering', () => {
+    it('should include 4 classification, 4 regression, 2 clustering', () => {
       const examples = WorkspaceStorage.getExampleProjects();
       const types = examples.map(p => p.type);
-      expect(types.filter(t => t === 'klassifikation')).toHaveLength(3);
-      expect(types.filter(t => t === 'regression')).toHaveLength(2);
-      expect(types.filter(t => t === 'clustering')).toHaveLength(1);
+      expect(types.filter(t => t === 'klassifikation')).toHaveLength(4);
+      expect(types.filter(t => t === 'regression')).toHaveLength(4);
+      expect(types.filter(t => t === 'clustering')).toHaveLength(2);
     });
 
     it('should have all example IDs starting with example-', () => {
@@ -217,11 +217,11 @@ describe('WorkspaceStorage', () => {
       }
     });
 
-    it('should have 5-8 features for each example', () => {
+    it('should have 5-11 features for each example', () => {
       const examples = WorkspaceStorage.getExampleProjects();
       for (const proj of examples) {
         expect(proj.features.length).toBeGreaterThanOrEqual(5);
-        expect(proj.features.length).toBeLessThanOrEqual(8);
+        expect(proj.features.length).toBeLessThanOrEqual(11);
       }
     });
 
@@ -252,6 +252,30 @@ describe('WorkspaceStorage', () => {
     it('should not be stored in LocalStorage', () => {
       WorkspaceStorage.getExampleProjects();
       expect(WorkspaceStorage.getProjects()).toEqual([]);
+    });
+
+    it('should have selectedDataset set on 6 real-data projects', () => {
+      const examples = WorkspaceStorage.getExampleProjects();
+      const withDataset = examples.filter(p => !!p.selectedDataset);
+      expect(withDataset).toHaveLength(6);
+      const ids = withDataset.map(p => p.selectedDataset);
+      expect(ids).toContain('titanic');
+      expect(ids).toContain('iris');
+      expect(ids).toContain('berlin-kfz-diebstahl');
+      expect(ids).toContain('berlin-kriminalitaetsatlas');
+      expect(ids).toContain('berlin-radzaehldaten');
+      expect(ids).toContain('berlin-abwasser-viruslast');
+    });
+
+    it('should have no selectedDataset on 4 synthetic projects', () => {
+      const examples = WorkspaceStorage.getExampleProjects();
+      const withoutDataset = examples.filter(p => !p.selectedDataset);
+      expect(withoutDataset).toHaveLength(4);
+      const ids = withoutDataset.map(p => p.id);
+      expect(ids).toContain('example-churn');
+      expect(ids).toContain('example-housing');
+      expect(ids).toContain('example-sales');
+      expect(ids).toContain('example-segments');
     });
   });
 
@@ -301,6 +325,16 @@ describe('WorkspaceStorage', () => {
       for (const phase of clone.phases) {
         expect(phase.status).toBe('pending');
       }
+    });
+
+    it('should preserve selectedDataset from example', () => {
+      const clone = WorkspaceStorage.cloneExampleProject('example-berlin-kfz');
+      expect(clone.selectedDataset).toBe('berlin-kfz-diebstahl');
+    });
+
+    it('should not have selectedDataset for synthetic examples', () => {
+      const clone = WorkspaceStorage.cloneExampleProject('example-churn');
+      expect(clone.selectedDataset).toBeUndefined();
     });
 
     it('should throw for non-existent example ID', () => {

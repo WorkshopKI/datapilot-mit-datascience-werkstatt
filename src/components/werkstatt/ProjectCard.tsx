@@ -11,8 +11,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, Play, Download, Trash2, Target, TrendingUp, Users } from 'lucide-react';
+import { MoreHorizontal, Play, Download, Trash2, Target, TrendingUp, Users, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { DATASET_REGISTRY, DatasetId } from '@/data/openDataRegistry';
 
 interface ProjectCardProps {
   project: WorkspaceProject;
@@ -30,22 +31,38 @@ const projectTypeConfig = {
 export function ProjectCard({ project, onDelete, onExport, isExample }: ProjectCardProps) {
   const typeConfig = projectTypeConfig[project.type];
   const TypeIcon = typeConfig.icon;
-  
+
   const completedPhases = project.phases.filter(p => p.status === 'completed').length;
   const totalPhases = project.phases.length;
   const progressPercent = Math.round((completedPhases / totalPhases) * 100);
-  
+
   const currentPhaseLabel = project.phases.find(p => p.id === project.currentPhase)?.shortName || 'Start';
+
+  // Update frequency badge for real datasets
+  const datasetInfo = project.selectedDataset
+    ? DATASET_REGISTRY[project.selectedDataset as DatasetId]
+    : undefined;
+  const frequencyLabel = datasetInfo?.updateFrequency === 'daily'
+    ? 'täglich'
+    : datasetInfo?.updateFrequency === 'weekly'
+      ? 'wöchentlich'
+      : undefined;
 
   return (
     <Card className="group hover:shadow-md transition-all hover:border-primary/30">
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between gap-2">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <TypeIcon className={cn('h-5 w-5', typeConfig.color)} />
             <Badge variant="outline" className="text-xs">
               {typeConfig.label}
             </Badge>
+            {frequencyLabel && (
+              <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                <RefreshCw className="h-3 w-3 mr-1" />
+                {frequencyLabel}
+              </Badge>
+            )}
           </div>
           
           {(onDelete || onExport) && (
@@ -99,9 +116,13 @@ export function ProjectCard({ project, onDelete, onExport, isExample }: ProjectC
 
         {/* Badge + Action */}
         <div className="flex items-center justify-between">
-          {isExample ? (
+          {isExample && project.selectedDataset ? (
+            <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+              Echte Daten
+            </Badge>
+          ) : isExample ? (
             <Badge variant="secondary" className="text-xs">
-              Beispiel
+              Synth. Daten
             </Badge>
           ) : project.hasDemoData ? (
             <Badge variant="secondary" className="text-xs">

@@ -304,7 +304,7 @@ describe('DataGenerator', () => {
 
       expect(code).not.toContain('make_classification');
       expect(code).not.toContain('open_url');
-      expect(code).toContain('csv_data = """');
+      expect(code).toContain('base64.b64decode');
       expect(code).toContain('pd.read_csv(StringIO(csv_data))');
       expect(code).toContain('df.head(891)');
       expect(code).toContain('random_state=42');
@@ -319,7 +319,7 @@ describe('DataGenerator', () => {
       });
       const code = DataGenerator.buildPythonCode(config, 'col1\nval1');
 
-      expect(code).toContain('csv_data = """');
+      expect(code).toContain('base64.b64decode');
       expect(code).not.toContain('make_classification');
       expect(code).not.toContain('open_url');
     });
@@ -334,7 +334,7 @@ describe('DataGenerator', () => {
       });
       const code = DataGenerator.buildPythonCode(config, 'col1\nval1');
 
-      expect(code).toContain('csv_data = """');
+      expect(code).toContain('base64.b64decode');
       expect(code).not.toContain('open_url');
     });
 
@@ -380,7 +380,7 @@ describe('DataGenerator', () => {
       const code = DataGenerator.buildPythonCode(config);
 
       expect(code).toContain('make_classification');
-      expect(code).not.toContain('csv_data = """');
+      expect(code).not.toContain('base64.b64decode');
       expect(code).not.toContain('load_iris');
     });
 
@@ -531,6 +531,7 @@ describe('DataGenerator', () => {
       mockPyodideReady();
       const fakeCsv = 'PassengerId,Survived,Pclass\n1,0,3\n2,1,1';
       vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+        ok: true,
         text: () => Promise.resolve(fakeCsv),
       }));
 
@@ -553,10 +554,10 @@ describe('DataGenerator', () => {
       // Verify fetch was called for the CSV
       expect(fetch).toHaveBeenCalledWith('/data/titanic.csv');
 
-      // Verify the Python code embeds the CSV, not open_url
+      // Verify the Python code uses base64-encoded CSV, not open_url
       const code = mockRunPython.mock.calls[0][0] as string;
-      expect(code).toContain('csv_data = """');
-      expect(code).toContain('PassengerId,Survived,Pclass');
+      expect(code).toContain('base64.b64decode');
+      expect(code).toContain('pd.read_csv(StringIO(csv_data))');
       expect(code).not.toContain('open_url');
 
       vi.unstubAllGlobals();
@@ -602,6 +603,58 @@ describe('DataGenerator', () => {
   // hasRealDataset tests
   // ===========================================
 
+  describe('detectDatasetId', () => {
+    it('detects Titanic by Pclass', () => {
+      const features = makeFeatures(['Age', 'Fare'], 'Survived');
+      features.push({ id: '99', name: 'Pclass', type: 'kategorial', description: '' });
+      expect(DataGenerator.detectDatasetId(features)).toBe('titanic');
+    });
+
+    it('detects Iris by Sepal features', () => {
+      const features = makeFeatures(['SepalLength', 'SepalWidth']);
+      expect(DataGenerator.detectDatasetId(features)).toBe('iris');
+    });
+
+    it('detects Kfz-Diebstahl by VERSUCH', () => {
+      const features = makeFeatures(['TATZEIT_ANFANG_STUNDE', 'BEZIRK'], 'VERSUCH');
+      expect(DataGenerator.detectDatasetId(features)).toBe('berlin-kfz-diebstahl');
+    });
+
+    it('detects Kfz-Diebstahl by EINDRINGEN_IN_KFZ', () => {
+      const features = makeFeatures(['EINDRINGEN_IN_KFZ', 'ERLANGTES_GUT']);
+      expect(DataGenerator.detectDatasetId(features)).toBe('berlin-kfz-diebstahl');
+    });
+
+    it('detects Kriminalitätsatlas by Straftaten_insgesamt', () => {
+      const features = makeFeatures(['Straftaten_insgesamt', 'Raub', 'Brandstiftung']);
+      expect(DataGenerator.detectDatasetId(features)).toBe('berlin-kriminalitaetsatlas');
+    });
+
+    it('detects Radzähldaten by Zaehlstelle + Anzahl', () => {
+      const features: Feature[] = [
+        { id: '1', name: 'Zaehlstelle', type: 'kategorial', description: '' },
+        { id: '2', name: 'Ist_Wochenende', type: 'kategorial', description: '' },
+        { id: '3', name: 'Anzahl', type: 'numerisch', description: '', isTarget: true },
+      ];
+      expect(DataGenerator.detectDatasetId(features)).toBe('berlin-radzaehldaten');
+    });
+
+    it('detects Abwasser by Viruslast', () => {
+      const features = makeFeatures(['Temperatur', 'pH'], 'Viruslast_Influenza_A');
+      expect(DataGenerator.detectDatasetId(features)).toBe('berlin-abwasser-viruslast');
+    });
+
+    it('detects Abwasser by Klaerwerk', () => {
+      const features = makeFeatures(['Klaerwerk', 'Durchfluss', 'Temperatur']);
+      expect(DataGenerator.detectDatasetId(features)).toBe('berlin-abwasser-viruslast');
+    });
+
+    it('returns undefined for generic features', () => {
+      const features = makeFeatures(['Alter', 'Gehalt'], 'Churn');
+      expect(DataGenerator.detectDatasetId(features)).toBeUndefined();
+    });
+  });
+
   describe('hasRealDataset', () => {
     it('returns true for Titanic features', () => {
       const features = [
@@ -621,6 +674,11 @@ describe('DataGenerator', () => {
       expect(DataGenerator.hasRealDataset(features)).toBe(true);
     });
 
+    it('returns true for Berlin Kfz-Diebstahl features', () => {
+      const features = makeFeatures(['TATZEIT_ANFANG_STUNDE', 'BEZIRK'], 'VERSUCH');
+      expect(DataGenerator.hasRealDataset(features)).toBe(true);
+    });
+
     it('returns false for generic features', () => {
       const features = makeFeatures(['Alter', 'Gehalt', 'Erfahrung'], 'Churn');
       expect(DataGenerator.hasRealDataset(features)).toBe(false);
@@ -637,7 +695,9 @@ describe('DataGenerator', () => {
         { id: 'f1', name: 'Pclass', type: 'kategorial' as const, description: '' },
         { id: 'f2', name: 'Survived', type: 'kategorial' as const, description: '', isTarget: true },
       ];
-      expect(DataGenerator.getRealDatasetLabel(features)).toBe('Titanic-Datensatz (echte Daten)');
+      const label = DataGenerator.getRealDatasetLabel(features)!;
+      expect(label).toContain('Titanic');
+      expect(label).toContain('echte Daten');
     });
 
     it('returns Iris label for Iris features', () => {
@@ -645,7 +705,41 @@ describe('DataGenerator', () => {
         { id: 'f1', name: 'SepalLength', type: 'numerisch' as const, description: '' },
         { id: 'f2', name: 'Species', type: 'kategorial' as const, description: '', isTarget: true },
       ];
-      expect(DataGenerator.getRealDatasetLabel(features)).toBe('Iris-Datensatz (echte Daten)');
+      const label = DataGenerator.getRealDatasetLabel(features)!;
+      expect(label).toContain('Iris');
+      expect(label).toContain('echte Daten');
+    });
+
+    it('returns label for Berlin Kfz-Diebstahl features', () => {
+      const features = makeFeatures(['TATZEIT_ANFANG_STUNDE', 'BEZIRK', 'SCHADENSHOEHE'], 'VERSUCH');
+      const label = DataGenerator.getRealDatasetLabel(features)!;
+      expect(label).toContain('Kfz-Diebstahl');
+      expect(label).toContain('echte Daten');
+    });
+
+    it('returns label for Berlin Kriminalitätsatlas features', () => {
+      const features = makeFeatures(['Straftaten_insgesamt', 'Raub', 'Brandstiftung']);
+      const label = DataGenerator.getRealDatasetLabel(features)!;
+      expect(label).toContain('Kriminalitätsatlas');
+      expect(label).toContain('echte Daten');
+    });
+
+    it('returns label for Berlin Radzähldaten features', () => {
+      const features: Feature[] = [
+        { id: '1', name: 'Zaehlstelle', type: 'kategorial', description: '' },
+        { id: '2', name: 'Ist_Wochenende', type: 'kategorial', description: '' },
+        { id: '3', name: 'Anzahl', type: 'numerisch', description: '', isTarget: true },
+      ];
+      const label = DataGenerator.getRealDatasetLabel(features)!;
+      expect(label).toContain('Radzähldaten');
+      expect(label).toContain('echte Daten');
+    });
+
+    it('returns label for Berlin Abwasser features', () => {
+      const features = makeFeatures(['Durchfluss', 'Temperatur'], 'Viruslast_Influenza_A');
+      const label = DataGenerator.getRealDatasetLabel(features)!;
+      expect(label).toContain('Viruslast');
+      expect(label).toContain('echte Daten');
     });
 
     it('returns undefined for generic features', () => {
@@ -663,6 +757,7 @@ describe('DataGenerator', () => {
       mockPyodideReady();
       const fakeCsv = 'PassengerId,Survived,Pclass\n1,0,3\n2,1,1';
       vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+        ok: true,
         text: () => Promise.resolve(fakeCsv),
       }));
       mockRunPythonSuccess({
@@ -680,7 +775,8 @@ describe('DataGenerator', () => {
       });
 
       const result = await DataGenerator.generate(config);
-      expect(result.description).toContain('Titanic-Datensatz (echte Daten)');
+      expect(result.description).toContain('Titanic');
+      expect(result.description).toContain('echte Daten');
       expect(result.description).toContain('891 Zeilen');
 
       vi.unstubAllGlobals();
@@ -706,7 +802,8 @@ describe('DataGenerator', () => {
       });
 
       const result = await DataGenerator.generate(config);
-      expect(result.description).toContain('Iris-Datensatz (echte Daten)');
+      expect(result.description).toContain('Iris');
+      expect(result.description).toContain('echte Daten');
       expect(result.description).toContain('150 Zeilen');
     });
 
@@ -721,6 +818,40 @@ describe('DataGenerator', () => {
       const result = await DataGenerator.generate(makeConfig());
       expect(result.description).toContain('Synthetischer Klassifikations-Datensatz');
       expect(result.description).not.toContain('echte Daten');
+    });
+  });
+
+  // ===========================================
+  // buildPythonCode with bundled CSV (generalized)
+  // ===========================================
+
+  describe('buildPythonCode with bundled CSV', () => {
+    it('generates bundled CSV code for any dataset with csvContent', () => {
+      const config = makeConfig({
+        features: makeFeatures(['TATZEIT_ANFANG_STUNDE', 'BEZIRK'], 'VERSUCH'),
+      });
+      const csvContent = 'VERSUCH,BEZIRK,SCHADENSHOEHE\nNein,Mitte,500\nJa,Pankow,0';
+      const code = DataGenerator.buildPythonCode(config, csvContent, 'berlin-kfz-diebstahl');
+
+      expect(code).toContain('base64.b64decode');
+      expect(code).toContain('pd.read_csv(StringIO(csv_data))');
+      // CSV content is base64-encoded, verify the base64 string is present
+      expect(code).toContain(btoa('VERSUCH,BEZIRK,SCHADENSHOEHE\nNein,Mitte,500\nJa,Pankow,0'));
+      expect(code).not.toContain('make_classification');
+      expect(code).not.toContain('load_iris');
+    });
+
+    it('generates Iris code without csvContent (uses sklearn)', () => {
+      const config = makeConfig({
+        features: [
+          { id: 'f1', name: 'SepalLength', type: 'numerisch', description: '' },
+          { id: 'f2', name: 'Species', type: 'kategorial', description: '', isTarget: true },
+        ],
+      });
+      const code = DataGenerator.buildPythonCode(config, undefined, 'iris');
+
+      expect(code).toContain('load_iris');
+      expect(code).not.toContain('csv_data');
     });
   });
 });

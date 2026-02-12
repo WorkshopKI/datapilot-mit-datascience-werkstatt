@@ -5,12 +5,16 @@
  * to produce realistic learning datasets in the browser. Feature names
  * from the project definition are mapped onto generated columns.
  *
+ * For real datasets (Titanic, Iris, Berlin Open Data), fetches bundled
+ * CSVs from public/data/ and loads them via Pyodide (pandas).
+ *
  * getPreviewData() remains as a synchronous mock fallback for quick
  * UI previews before Pyodide is loaded.
  */
 
 import { Feature, ProjectType } from '../types';
 import { PyodideManager } from '../pyodide/PyodideManager';
+import { DATASET_REGISTRY, type DatasetId } from '@/data/openDataRegistry';
 
 export interface GeneratedDataset {
   columns: string[];
@@ -51,14 +55,24 @@ export class DataGenerator {
       );
     }
 
-    // Prefetch Titanic CSV on main thread (open_url is blocked in module workers)
-    let titanicCsv: string | undefined;
-    if (config.type === 'klassifikation' && DataGenerator.isTitanicProject(config.features)) {
-      const response = await fetch('/data/titanic.csv');
-      titanicCsv = await response.text();
+    // Detect real dataset and prefetch CSV if needed
+    const datasetId = DataGenerator.detectDatasetId(config.features);
+    let csvContent: string | undefined;
+
+    if (datasetId) {
+      const info = DATASET_REGISTRY[datasetId];
+      if (info?.bundledCsvPath) {
+        // Iris uses sklearn loader, no CSV fetch needed
+        if (datasetId !== 'iris') {
+          const response = await fetch(info.bundledCsvPath);
+          if (response.ok) {
+            csvContent = await response.text();
+          }
+        }
+      }
     }
 
-    const code = DataGenerator.buildPythonCode(config, titanicCsv);
+    const code = DataGenerator.buildPythonCode(config, csvContent, datasetId);
     const execResult = await manager.runPython(code);
 
     if (!execResult.success) {
@@ -98,13 +112,26 @@ export class DataGenerator {
    * Build the Python code string for data generation based on config.
    * @internal Exposed for testing.
    */
-  static buildPythonCode(config: DataGeneratorConfig, titanicCsv?: string): string {
+  static buildPythonCode(config: DataGeneratorConfig, csvContent?: string, datasetId?: DatasetId): string {
     const seed = config.randomSeed ?? 42;
     const noise = config.noiseFactor ?? 0.1;
 
+    // Auto-detect dataset from features if not explicitly provided
+    const detectedId = datasetId ?? DataGenerator.detectDatasetId(config.features);
+
+    // Route to bundled CSV loader for any real dataset with CSV content
+    if (csvContent && detectedId && detectedId !== 'iris') {
+      return DataGenerator.buildBundledCsvCode(config, seed, csvContent);
+    }
+
+    // Iris uses sklearn's built-in loader
+    if (detectedId === 'iris') {
+      return DataGenerator.buildIrisCode(config, seed);
+    }
+
     switch (config.type) {
       case 'klassifikation':
-        return DataGenerator.buildClassificationCode(config, seed, noise, titanicCsv);
+        return DataGenerator.buildClassificationCode(config, seed, noise);
       case 'regression':
         return DataGenerator.buildRegressionCode(config, seed, noise);
       case 'clustering':
@@ -151,16 +178,62 @@ export class DataGenerator {
     }
   }
 
-  /** Checks whether the features match a real dataset (Titanic/Iris). */
+  /**
+   * Detect which real dataset matches the features, or undefined for synthetic.
+   * Supports Titanic, Iris, and all Berlin Open Data datasets.
+   */
+  static detectDatasetId(features: Feature[]): DatasetId | undefined {
+    const names = features.map(f => f.name);
+
+    // Titanic
+    if (names.some(n => n === 'Pclass' || n === 'Survived' || n === 'Embarked')) {
+      return 'titanic';
+    }
+    // Iris
+    if (names.some(n => n.includes('Sepal') || n.includes('Petal'))) {
+      return 'iris';
+    }
+    // Kfz-Diebstahl
+    if (names.some(n => n === 'VERSUCH' || n === 'EINDRINGEN_IN_KFZ' || n === 'ERLANGTES_GUT')) {
+      return 'berlin-kfz-diebstahl';
+    }
+    // Kriminalitätsatlas
+    if (names.some(n => n === 'Straftaten_insgesamt' || n === 'Koerperverletzung_insgesamt')) {
+      return 'berlin-kriminalitaetsatlas';
+    }
+    // Radzähldaten
+    if (names.some(n => n === 'Zaehlstelle' || n === 'Ist_Wochenende') && names.includes('Anzahl')) {
+      return 'berlin-radzaehldaten';
+    }
+    // Abwasser
+    if (names.some(n => n.includes('Viruslast') || n === 'Klaerwerk' || n === 'Durchfluss')) {
+      return 'berlin-abwasser-viruslast';
+    }
+
+    return undefined;
+  }
+
+  /** Checks whether the features match a real dataset. */
   static hasRealDataset(features: Feature[]): boolean {
-    return DataGenerator.isTitanicProject(features) || DataGenerator.isIrisProject(features);
+    return DataGenerator.detectDatasetId(features) !== undefined;
   }
 
   /** Returns a human-readable label, or undefined for generic projects. */
   static getRealDatasetLabel(features: Feature[]): string | undefined {
-    if (DataGenerator.isTitanicProject(features)) return 'Titanic-Datensatz (echte Daten)';
-    if (DataGenerator.isIrisProject(features)) return 'Iris-Datensatz (echte Daten)';
-    return undefined;
+    const id = DataGenerator.detectDatasetId(features);
+    if (!id) return undefined;
+    const info = DATASET_REGISTRY[id];
+    return info ? `${info.emoji} ${info.name} (echte Daten)` : undefined;
+  }
+
+  /** @deprecated Use detectDatasetId() instead */
+  static isTitanicProject(features: Feature[]): boolean {
+    return DataGenerator.detectDatasetId(features) === 'titanic';
+  }
+
+  /** @deprecated Use detectDatasetId() instead */
+  static isIrisProject(features: Feature[]): boolean {
+    return DataGenerator.detectDatasetId(features) === 'iris';
   }
 
   // --- Private code builders ---
@@ -186,31 +259,19 @@ export class DataGenerator {
     return `[${escaped.join(', ')}]`;
   }
 
-  /** Detect Titanic-like project by feature names */
-  private static isTitanicProject(features: Feature[]): boolean {
-    const names = features.map(f => f.name);
-    return names.some(n => n === 'Pclass' || n === 'Survived' || n === 'Embarked');
-  }
-
-  /** Detect Iris-like project by feature names */
-  private static isIrisProject(features: Feature[]): boolean {
-    const names = features.map(f => f.name);
-    return names.some(n => n.includes('Sepal') || n.includes('Petal'));
-  }
-
-  private static buildTitanicCode(config: DataGeneratorConfig, seed: number, csvContent?: string): string {
-    const rowCount = config.rowCount || 891;
-    // Escape backslashes and triple-quotes in CSV content (same pattern as DataAnalyzer)
-    const escaped = (csvContent ?? '')
-      .replace(/\\/g, '\\\\')
-      .replace(/"""/g, '\\"\\"\\"');
+  /** Generalized bundled CSV loader (works for Titanic and all Berlin datasets) */
+  private static buildBundledCsvCode(config: DataGeneratorConfig, seed: number, csvContent: string): string {
+    const rowCount = config.rowCount || 99999;
+    // Base64 encode CSV to avoid Python string literal issues (quotes, backslashes)
+    const base64 = DataGenerator.toBase64(csvContent);
 
     return `
 import pandas as pd
 from io import StringIO
 import json
+import base64
 
-csv_data = """${escaped}"""
+csv_data = base64.b64decode("${base64}").decode("utf-8")
 df = pd.read_csv(StringIO(csv_data))
 
 # Shuffle für Varianz
@@ -224,6 +285,18 @@ result = {
 }
 result
 `.trim();
+  }
+
+  /** Encode a string as base64 (UTF-8 safe, handles large strings) */
+  private static toBase64(str: string): string {
+    const bytes = new TextEncoder().encode(str);
+    const chunks: string[] = [];
+    const chunkSize = 8192;
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+      const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.length));
+      chunks.push(String.fromCharCode(...chunk));
+    }
+    return btoa(chunks.join(''));
   }
 
   private static buildIrisCode(config: DataGeneratorConfig, seed: number): string {
@@ -253,16 +326,7 @@ result
     config: DataGeneratorConfig,
     seed: number,
     noise: number,
-    titanicCsv?: string,
   ): string {
-    // Route to specialized builders for known datasets
-    if (DataGenerator.isTitanicProject(config.features)) {
-      return DataGenerator.buildTitanicCode(config, seed, titanicCsv);
-    }
-    if (DataGenerator.isIrisProject(config.features)) {
-      return DataGenerator.buildIrisCode(config, seed);
-    }
-
     const featureNames = DataGenerator.getFeatureNames(config.features, true);
     const targetName = DataGenerator.getTargetName(config.features);
     const nFeatures = Math.max(featureNames.length, 2);

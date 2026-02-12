@@ -109,21 +109,32 @@ export class DataAnalyzer {
    * @internal Exposed for testing.
    */
   static buildAnalyzeCSVCode(csvContent: string): string {
-    // Escape backslashes and triple-quotes in CSV content
-    const escaped = csvContent
-      .replace(/\\/g, '\\\\')
-      .replace(/"""/g, '\\"\\"\\"');
+    // Base64 encode CSV to avoid Python string literal issues (quotes, backslashes)
+    const base64 = DataAnalyzer.toBase64(csvContent);
 
     return `
 import pandas as pd
 import json
 from io import StringIO
+import base64
 
-csv_data = """${escaped}"""
+csv_data = base64.b64decode("${base64}").decode("utf-8")
 df = pd.read_csv(StringIO(csv_data))
 
 ${DataAnalyzer.ANALYSIS_CODE}
 `.trim();
+  }
+
+  /** Encode a string as base64 (UTF-8 safe, handles large strings) */
+  private static toBase64(str: string): string {
+    const bytes = new TextEncoder().encode(str);
+    const chunks: string[] = [];
+    const chunkSize = 8192;
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+      const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.length));
+      chunks.push(String.fromCharCode(...chunk));
+    }
+    return btoa(chunks.join(''));
   }
 
   /**
