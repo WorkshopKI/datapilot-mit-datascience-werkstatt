@@ -137,7 +137,7 @@ export class KnimeExporter {
     for (const step of steps) {
       const mapper = STEP_NODE_MAP[step.type];
       if (mapper) {
-        const { knimeNode, hint } = mapper(step.config as Record<string, unknown>);
+        const { knimeNode, hint } = mapper(step.config as unknown as Record<string, unknown>);
         entries.push({
           datapilotStep: step.label,
           knimeNode,

@@ -13,7 +13,7 @@ vi.mock('../../data/SyntheticTwinGenerator', () => ({
 // jsdom File does not have .text() – polyfill for tests
 beforeAll(() => {
   if (!File.prototype.text) {
-    File.prototype.text = function () {
+    File.prototype.text = function (): Promise<string> {
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => resolve(reader.result as string);
