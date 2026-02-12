@@ -1,25 +1,21 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
+import {
+  mockRunPython,
+  mockPyodideReady,
+  mockPyodideNotReady,
+  mockRunPythonSuccess,
+  mockRunPythonError,
+} from '@/test/mocks/pyodideMock';
 
-// Mock PyodideManager before importing ModelDeployer
-vi.mock('../../pyodide/PyodideManager', () => {
-  const mockRunPython = vi.fn();
-  const mockGetState = vi.fn();
-  const mockGetInstance = vi.fn(() => ({
-    runPython: mockRunPython,
-    getState: mockGetState,
-  }));
-
-  return {
-    PyodideManager: {
-      getInstance: mockGetInstance,
-    },
-    __mockRunPython: mockRunPython,
-    __mockGetState: mockGetState,
-  };
+// Mock PyodideManager (async factory avoids hoisting issues)
+vi.mock('../../pyodide/PyodideManager', async () => {
+  const m = await import('@/test/mocks/pyodideMock');
+  return m.pyodideMockFactory();
 });
 
 import { ModelDeployer } from '../ModelDeployer';
 import type { PredictionResult } from '../ModelDeployer';
+import { createMockModel, createMockProject } from '@/test/fixtures';
 import type {
   WorkspaceProject,
   TrainedModel,
@@ -28,82 +24,12 @@ import type {
   ProjectType,
 } from '../../types';
 
-const pyodideMock = await import('../../pyodide/PyodideManager');
-const mockRunPython = (pyodideMock as Record<string, unknown>).__mockRunPython as ReturnType<typeof vi.fn>;
-const mockGetState = (pyodideMock as Record<string, unknown>).__mockGetState as ReturnType<typeof vi.fn>;
-
 // --- Helpers ---
 
-function mockPyodideReady(): void {
-  mockGetState.mockReturnValue({ isReady: true, isLoading: false, stage: 'ready', percent: 100, message: '' });
-}
-
-function mockPyodideNotReady(): void {
-  mockGetState.mockReturnValue({ isReady: false, isLoading: false, stage: 'downloading', percent: 0, message: '' });
-}
-
-function mockRunPythonSuccess(result: unknown): void {
-  mockRunPython.mockResolvedValue({
-    success: true,
-    result,
-    stdout: [],
-    stderr: [],
-  });
-}
-
-function mockRunPythonError(error: string): void {
-  mockRunPython.mockResolvedValue({
-    success: false,
-    error,
-    stdout: [],
-    stderr: [],
-  });
-}
-
-function makeModel(overrides?: Partial<TrainedModel>): TrainedModel {
-  return {
-    id: 'model-1',
-    algorithmType: 'random-forest-classifier',
-    algorithmLabel: 'Random Forest (Klassifikation)',
-    hyperparameters: { n_estimators: 100, max_depth: 10 },
-    metrics: { accuracy: 0.85, f1Score: 0.84 },
-    featureImportances: [
-      { feature: 'Alter', importance: 0.6 },
-      { feature: 'Gehalt', importance: 0.4 },
-    ],
-    trainedAt: '2026-01-01T00:00:00.000Z',
-    trainingDurationMs: 1200,
-    pythonCode: `from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score, f1_score
-
-X_train = df_train.drop(columns=["target"])
-y_train = df_train["target"]
-X_test = df_test.drop(columns=["target"])
-y_test = df_test["target"]
-
-model = RandomForestClassifier(n_estimators=100, max_depth=10)
-model.fit(X_train, y_train)
-y_pred = model.predict(X_test)
-
-accuracy = accuracy_score(y_test, y_pred)
-f1 = f1_score(y_test, y_pred, average="weighted")`,
-    targetColumn: 'target',
-    ...overrides,
-  };
-}
+const makeModel = createMockModel;
 
 function makeProject(overrides?: Partial<WorkspaceProject>): WorkspaceProject {
-  return {
-    id: 'proj-1',
-    name: 'Testprojekt',
-    description: 'Ein Testprojekt',
-    type: 'klassifikation',
-    createdAt: '2026-01-01T00:00:00.000Z',
-    updatedAt: '2026-01-01T00:00:00.000Z',
-    currentPhase: 'deployment',
-    phases: [],
-    features: [],
-    businessGoal: 'Kundenabwanderung vorhersagen',
+  return createMockProject({
     successCriteria: 'Accuracy > 80%',
     dataSource: 'csv',
     rowCount: 1000,
@@ -123,11 +49,8 @@ function makeProject(overrides?: Partial<WorkspaceProject>): WorkspaceProject {
         pythonCode: 'df_train, df_test = train_test_split(df, test_size=0.2, random_state=42)',
       } as PipelineStep,
     ],
-    trainedModels: [makeModel()],
-    selectedModelId: 'model-1',
-    targetColumn: 'target',
     ...overrides,
-  };
+  });
 }
 
 beforeEach(() => {

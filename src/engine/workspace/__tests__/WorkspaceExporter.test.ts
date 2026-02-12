@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { WorkspaceExporter } from '../WorkspaceExporter';
 import { WorkspaceProject, DEFAULT_CRISP_DM_PHASES } from '../../types';
 
@@ -10,19 +10,7 @@ vi.mock('../../data/SyntheticTwinGenerator', () => ({
   },
 }));
 
-// jsdom File does not have .text() – polyfill for tests
-beforeAll(() => {
-  if (!File.prototype.text) {
-    File.prototype.text = function () {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = () => reject(reader.error);
-        reader.readAsText(this);
-      });
-    };
-  }
-});
+// File.text() polyfill is now in src/test/setup.ts
 
 function createTestProject(): WorkspaceProject {
   return {

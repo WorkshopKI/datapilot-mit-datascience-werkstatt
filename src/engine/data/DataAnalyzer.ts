@@ -6,7 +6,8 @@
  * and column type classification.
  */
 
-import { PyodideManager } from '../pyodide/PyodideManager';
+import { ensurePyodideReady } from '../pyodide/ensurePyodide';
+import { toBase64 } from '../utils/encoding';
 
 /** Statistics for a single column */
 export interface ColumnStatistics {
@@ -46,14 +47,7 @@ export class DataAnalyzer {
    * Parse CSV content and run full analysis in one Pyodide call.
    */
   static async analyzeCSV(csvContent: string): Promise<DataAnalysisResult> {
-    const manager = PyodideManager.getInstance();
-    const state = manager.getState();
-
-    if (!state.isReady) {
-      throw new Error(
-        'Pyodide ist nicht initialisiert. Bitte zuerst die ML-Engine starten.',
-      );
-    }
+    const manager = ensurePyodideReady();
 
     if (!csvContent.trim()) {
       throw new Error('CSV-Inhalt ist leer.');
@@ -78,14 +72,7 @@ export class DataAnalyzer {
     rows: Record<string, unknown>[],
     columns: string[],
   ): Promise<DataAnalysisResult> {
-    const manager = PyodideManager.getInstance();
-    const state = manager.getState();
-
-    if (!state.isReady) {
-      throw new Error(
-        'Pyodide ist nicht initialisiert. Bitte zuerst die ML-Engine starten.',
-      );
-    }
+    const manager = ensurePyodideReady();
 
     if (!rows.length) {
       throw new Error('Keine Daten vorhanden.');
@@ -110,7 +97,7 @@ export class DataAnalyzer {
    */
   static buildAnalyzeCSVCode(csvContent: string): string {
     // Base64 encode CSV to avoid Python string literal issues (quotes, backslashes)
-    const base64 = DataAnalyzer.toBase64(csvContent);
+    const base64 = toBase64(csvContent);
 
     return `
 import pandas as pd
@@ -123,18 +110,6 @@ df = pd.read_csv(StringIO(csv_data))
 
 ${DataAnalyzer.ANALYSIS_CODE}
 `.trim();
-  }
-
-  /** Encode a string as base64 (UTF-8 safe, handles large strings) */
-  private static toBase64(str: string): string {
-    const bytes = new TextEncoder().encode(str);
-    const chunks: string[] = [];
-    const chunkSize = 8192;
-    for (let i = 0; i < bytes.length; i += chunkSize) {
-      const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.length));
-      chunks.push(String.fromCharCode(...chunk));
-    }
-    return btoa(chunks.join(''));
   }
 
   /**
@@ -179,14 +154,7 @@ ${DataAnalyzer.ANALYSIS_CODE}
    * Useful when the user navigates back to DataUnderstanding after leaving.
    */
   static async analyzeExistingDataFrame(): Promise<DataAnalysisResult> {
-    const manager = PyodideManager.getInstance();
-    const state = manager.getState();
-
-    if (!state.isReady) {
-      throw new Error(
-        'Pyodide ist nicht initialisiert. Bitte zuerst die ML-Engine starten.',
-      );
-    }
+    const manager = ensurePyodideReady();
 
     const code = DataAnalyzer.buildAnalyzeExistingDfCode();
     const execResult = await manager.runPython(code);

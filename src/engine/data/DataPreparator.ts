@@ -12,7 +12,7 @@
  * - Undo = replay the whole pipeline from `df_original`
  */
 
-import { PyodideManager } from '../pyodide/PyodideManager';
+import { ensurePyodideReady } from '../pyodide/ensurePyodide';
 import type {
   PipelineStep,
   PreparedDataSummary,
@@ -66,12 +66,7 @@ export class DataPreparator {
    * Must be called once before the first pipeline step.
    */
   static async initializePipeline(): Promise<PreparedDataSummary> {
-    const manager = PyodideManager.getInstance();
-    const state = manager.getState();
-
-    if (!state.isReady) {
-      throw new Error('Pyodide ist nicht initialisiert. Bitte zuerst die ML-Engine starten.');
-    }
+    const manager = ensurePyodideReady();
 
     const code = `
 import json as _json
@@ -105,12 +100,7 @@ _result
    * Execute a single pipeline step on `df`.
    */
   static async applyStep(step: PipelineStep): Promise<StepExecutionResult> {
-    const manager = PyodideManager.getInstance();
-    const state = manager.getState();
-
-    if (!state.isReady) {
-      throw new Error('Pyodide ist nicht initialisiert. Bitte zuerst die ML-Engine starten.');
-    }
+    const manager = ensurePyodideReady();
 
     const stepCode = DataPreparator.buildStepCode(step);
     const fullCode = `${stepCode}\n${SUMMARY_CODE}`;
@@ -135,12 +125,7 @@ _result
    * Used for undo (remove a step and replay remaining ones).
    */
   static async replayPipeline(steps: PipelineStep[]): Promise<StepExecutionResult> {
-    const manager = PyodideManager.getInstance();
-    const state = manager.getState();
-
-    if (!state.isReady) {
-      throw new Error('Pyodide ist nicht initialisiert. Bitte zuerst die ML-Engine starten.');
-    }
+    const manager = ensurePyodideReady();
 
     // Reset df to df_original
     let code = 'df = df_original.copy()\n';
@@ -179,12 +164,7 @@ _result
    * Query the current DataFrame summary without modifying it.
    */
   static async getDataSummary(): Promise<PreparedDataSummary> {
-    const manager = PyodideManager.getInstance();
-    const state = manager.getState();
-
-    if (!state.isReady) {
-      throw new Error('Pyodide ist nicht initialisiert. Bitte zuerst die ML-Engine starten.');
-    }
+    const manager = ensurePyodideReady();
 
     const code = `
 import json as _json
@@ -219,12 +199,7 @@ _result
    * @param rowCount – if provided, returns `df.head(rowCount)`; otherwise all rows.
    */
   static async getPreviewRows(rowCount?: number): Promise<Record<string, unknown>[]> {
-    const manager = PyodideManager.getInstance();
-    const state = manager.getState();
-
-    if (!state.isReady) {
-      throw new Error('Pyodide ist nicht initialisiert. Bitte zuerst die ML-Engine starten.');
-    }
+    const manager = ensurePyodideReady();
 
     const slice = rowCount != null ? `df.head(${rowCount})` : 'df';
     const code = `
@@ -273,7 +248,7 @@ _json.loads(${slice}.to_json(orient="records"))
   /** @internal */
   static buildMissingValuesCode(config: MissingValuesConfig): string {
     const cols = config.columns.length > 0
-      ? `[${config.columns.map(c => `"${c}"`).join(', ')}]`
+      ? DataPreparator.columnsToPython(config.columns)
       : 'df.columns[df.isnull().any()].tolist()';
 
     switch (config.strategy) {
@@ -322,7 +297,7 @@ _summary = f"{int(_count)} fehlende Werte mit Konstante gefüllt"`;
 
   /** @internal */
   static buildOutlierRemovalCode(config: OutlierRemovalConfig): string {
-    const cols = `[${config.columns.map(c => `"${c}"`).join(', ')}]`;
+    const cols = DataPreparator.columnsToPython(config.columns);
 
     if (config.method === 'zscore') {
       return `_cols = ${cols}
@@ -354,7 +329,7 @@ _summary = f"{_before - _after} Ausreißer entfernt (IQR-Faktor {_factor})"`;
 
   /** @internal */
   static buildEncodingCode(config: EncodingConfig): string {
-    const cols = `[${config.columns.map(c => `"${c}"`).join(', ')}]`;
+    const cols = DataPreparator.columnsToPython(config.columns);
 
     if (config.method === 'one-hot') {
       const dropFirst = config.dropFirst ? 'True' : 'False';
@@ -376,7 +351,7 @@ _summary = f"Label-Encoding auf {len(_cols)} Spalte(n) angewendet"`;
 
   /** @internal */
   static buildScalingCode(config: ScalingConfig): string {
-    const cols = `[${config.columns.map(c => `"${c}"`).join(', ')}]`;
+    const cols = DataPreparator.columnsToPython(config.columns);
 
     if (config.method === 'standard') {
       return `_cols = ${cols}
@@ -396,7 +371,7 @@ _summary = f"MinMaxScaler auf {len(_cols)} Spalte(n) angewendet"`;
 
   /** @internal */
   static buildFeatureSelectionCode(config: FeatureSelectionConfig): string {
-    const cols = `[${config.columns.map(c => `"${c}"`).join(', ')}]`;
+    const cols = DataPreparator.columnsToPython(config.columns);
 
     if (config.method === 'drop-columns') {
       return `_cols = ${cols}
@@ -429,6 +404,11 @@ _summary = f"Train-Test-Split: {len(df_train)} Train / {len(df_test)} Test"`;
   // ============================
   // Private helpers
   // ============================
+
+  /** Format a string[] as a Python list literal: `["col1", "col2"]` */
+  private static columnsToPython(columns: string[]): string {
+    return `[${columns.map(c => `"${c}"`).join(', ')}]`;
+  }
 
   private static parseSummary(raw: unknown): PreparedDataSummary {
     const result = raw as PreparedDataSummary | null;

@@ -13,7 +13,7 @@
  * - For clustering, expects `_model` and `df` to exist
  */
 
-import { PyodideManager } from '../pyodide/PyodideManager';
+import { ensurePyodideReady } from '../pyodide/ensurePyodide';
 import type {
   WorkspaceProject,
   TrainedModel,
@@ -58,12 +58,7 @@ export class ModelDeployer {
     targetColumn: string,
     projectType: ProjectType,
   ): Promise<PredictionResult> {
-    const manager = PyodideManager.getInstance();
-    const state = manager.getState();
-
-    if (!state.isReady) {
-      throw new Error('Pyodide ist nicht initialisiert. Bitte zuerst die ML-Engine starten.');
-    }
+    const manager = ensurePyodideReady();
 
     const code = ModelDeployer.buildPredictionCode(inputValues, targetColumn, projectType);
     const execResult = await manager.runPython(code);

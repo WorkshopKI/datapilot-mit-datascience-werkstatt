@@ -5,7 +5,7 @@
  */
 
 import { SyntheticTwinConfig, SyntheticTwinData, SyntheticTwinValidation } from '../types';
-import { PyodideManager } from '../pyodide/PyodideManager';
+import { ensurePyodideReady } from '../pyodide/ensurePyodide';
 
 /** Statistical profile of a single column */
 export interface ColumnProfileInfo {
@@ -34,12 +34,7 @@ export class SyntheticTwinGenerator {
    * Loads scipy for KS-test validation.
    */
   static async generate(config: SyntheticTwinConfig): Promise<SyntheticTwinData> {
-    const manager = PyodideManager.getInstance();
-    const state = manager.getState();
-
-    if (!state.isReady) {
-      throw new Error('Pyodide ist nicht initialisiert. Bitte warten Sie, bis die Engine geladen ist.');
-    }
+    const manager = ensurePyodideReady();
 
     // scipy is needed for KS-test validation
     await manager.loadPackages(['scipy']);
@@ -81,12 +76,7 @@ export class SyntheticTwinGenerator {
    * Expects `df` to exist in the Pyodide worker.
    */
   static async extractProfile(): Promise<DataProfile> {
-    const manager = PyodideManager.getInstance();
-    const state = manager.getState();
-
-    if (!state.isReady) {
-      throw new Error('Pyodide ist nicht initialisiert.');
-    }
+    const manager = ensurePyodideReady();
 
     const code = `
 import json

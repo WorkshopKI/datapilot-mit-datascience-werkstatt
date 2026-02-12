@@ -1,35 +1,22 @@
-import { describe, it, expect, beforeEach, beforeAll, vi } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import type { SyntheticTwinConfig } from '../../types';
+import {
+  mockRunPython,
+  mockLoadPackages,
+  mockPyodideReady,
+  mockPyodideNotReady,
+  mockRunPythonSuccess,
+  mockRunPythonError,
+} from '@/test/mocks/pyodideMock';
 
-// Mock PyodideManager before importing SyntheticTwinGenerator
-vi.mock('../../pyodide/PyodideManager', () => {
-  const mockRunPython = vi.fn();
-  const mockGetState = vi.fn();
-  const mockLoadPackages = vi.fn().mockResolvedValue(undefined);
-  const mockGetInstance = vi.fn(() => ({
-    runPython: mockRunPython,
-    getState: mockGetState,
-    loadPackages: mockLoadPackages,
-  }));
-
-  return {
-    PyodideManager: {
-      getInstance: mockGetInstance,
-    },
-    __mockRunPython: mockRunPython,
-    __mockGetState: mockGetState,
-    __mockLoadPackages: mockLoadPackages,
-  };
+// Mock PyodideManager (async factory avoids hoisting issues)
+vi.mock('../../pyodide/PyodideManager', async () => {
+  const m = await import('@/test/mocks/pyodideMock');
+  return m.pyodideMockFactory();
 });
 
 // Import after mocking
 import { SyntheticTwinGenerator } from '../SyntheticTwinGenerator';
-
-// Access the mocks
-const pyodideMock = await import('../../pyodide/PyodideManager');
-const mockRunPython = (pyodideMock as Record<string, unknown>).__mockRunPython as ReturnType<typeof vi.fn>;
-const mockGetState = (pyodideMock as Record<string, unknown>).__mockGetState as ReturnType<typeof vi.fn>;
-const mockLoadPackages = (pyodideMock as Record<string, unknown>).__mockLoadPackages as ReturnType<typeof vi.fn>;
 
 // --- Helpers ---
 
@@ -40,32 +27,6 @@ function makeConfig(overrides?: Partial<SyntheticTwinConfig>): SyntheticTwinConf
     preserveCorrelations: true,
     ...overrides,
   };
-}
-
-function mockPyodideReady(): void {
-  mockGetState.mockReturnValue({ isReady: true, isLoading: false, stage: 'ready', percent: 100, message: '' });
-}
-
-function mockPyodideNotReady(): void {
-  mockGetState.mockReturnValue({ isReady: false, isLoading: false, stage: 'downloading', percent: 0, message: '' });
-}
-
-function mockRunPythonSuccess(result: unknown): void {
-  mockRunPython.mockResolvedValue({
-    success: true,
-    result,
-    stdout: [],
-    stderr: [],
-  });
-}
-
-function mockRunPythonError(error: string): void {
-  mockRunPython.mockResolvedValue({
-    success: false,
-    error,
-    stdout: [],
-    stderr: [],
-  });
 }
 
 function makeSyntheticResult() {

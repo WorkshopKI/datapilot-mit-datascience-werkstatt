@@ -12,7 +12,7 @@
  * - Each training run produces a `TrainedModel` with metrics + code
  */
 
-import { PyodideManager } from '../pyodide/PyodideManager';
+import { ensurePyodideReady } from '../pyodide/ensurePyodide';
 import type {
   AlgorithmType,
   AlgorithmConfig,
@@ -165,12 +165,7 @@ export class ModelTrainer {
     targetColumn: string,
     projectType: ProjectType,
   ): Promise<TrainingResult> {
-    const manager = PyodideManager.getInstance();
-    const state = manager.getState();
-
-    if (!state.isReady) {
-      throw new Error('Pyodide ist nicht initialisiert. Bitte zuerst die ML-Engine starten.');
-    }
+    const manager = ensurePyodideReady();
 
     const code = ModelTrainer.buildTrainingCode(config, targetColumn, projectType);
     const startTime = Date.now();
@@ -212,12 +207,7 @@ export class ModelTrainer {
    * Train a clustering model on `df` (no train/test split needed).
    */
   static async trainClusteringModel(config: AlgorithmConfig): Promise<TrainingResult> {
-    const manager = PyodideManager.getInstance();
-    const state = manager.getState();
-
-    if (!state.isReady) {
-      throw new Error('Pyodide ist nicht initialisiert. Bitte zuerst die ML-Engine starten.');
-    }
+    const manager = ensurePyodideReady();
 
     const code = ModelTrainer.buildClusteringCode(config);
     const startTime = Date.now();

@@ -1,58 +1,23 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import {
+  mockRunPython,
+  mockPyodideReady,
+  mockPyodideNotReady,
+  mockRunPythonSuccess,
+  mockRunPythonError,
+} from '@/test/mocks/pyodideMock';
 
-// Mock PyodideManager before importing ModelTrainer
-vi.mock('../../pyodide/PyodideManager', () => {
-  const mockRunPython = vi.fn();
-  const mockGetState = vi.fn();
-  const mockGetInstance = vi.fn(() => ({
-    runPython: mockRunPython,
-    getState: mockGetState,
-  }));
-
-  return {
-    PyodideManager: {
-      getInstance: mockGetInstance,
-    },
-    __mockRunPython: mockRunPython,
-    __mockGetState: mockGetState,
-  };
+// Mock PyodideManager (async factory avoids hoisting issues)
+vi.mock('../../pyodide/PyodideManager', async () => {
+  const m = await import('@/test/mocks/pyodideMock');
+  return m.pyodideMockFactory();
 });
 
 import { ModelTrainer } from '../ModelTrainer';
 import type { TrainingResult, AlgorithmInfo, HyperparameterDef } from '../ModelTrainer';
 import type { AlgorithmConfig, AlgorithmType, ModelMetrics, FeatureImportance } from '../../types';
 
-const pyodideMock = await import('../../pyodide/PyodideManager');
-const mockRunPython = (pyodideMock as Record<string, unknown>).__mockRunPython as ReturnType<typeof vi.fn>;
-const mockGetState = (pyodideMock as Record<string, unknown>).__mockGetState as ReturnType<typeof vi.fn>;
-
 // --- Helpers ---
-
-function mockPyodideReady(): void {
-  mockGetState.mockReturnValue({ isReady: true, isLoading: false, stage: 'ready', percent: 100, message: '' });
-}
-
-function mockPyodideNotReady(): void {
-  mockGetState.mockReturnValue({ isReady: false, isLoading: false, stage: 'downloading', percent: 0, message: '' });
-}
-
-function mockRunPythonSuccess(result: unknown): void {
-  mockRunPython.mockResolvedValue({
-    success: true,
-    result,
-    stdout: [],
-    stderr: [],
-  });
-}
-
-function mockRunPythonError(error: string): void {
-  mockRunPython.mockResolvedValue({
-    success: false,
-    error,
-    stdout: [],
-    stderr: [],
-  });
-}
 
 function makeClassificationResult(): Record<string, unknown> {
   return {

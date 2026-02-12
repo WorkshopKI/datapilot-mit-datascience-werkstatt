@@ -13,7 +13,8 @@
  */
 
 import { Feature, ProjectType } from '../types';
-import { PyodideManager } from '../pyodide/PyodideManager';
+import { ensurePyodideReady } from '../pyodide/ensurePyodide';
+import { toBase64 } from '../utils/encoding';
 import { DATASET_REGISTRY, type DatasetId } from '@/data/openDataRegistry';
 
 export interface GeneratedDataset {
@@ -46,14 +47,7 @@ export class DataGenerator {
    * Requires Pyodide to be initialized first.
    */
   static async generate(config: DataGeneratorConfig): Promise<GeneratedDataset> {
-    const manager = PyodideManager.getInstance();
-    const state = manager.getState();
-
-    if (!state.isReady) {
-      throw new Error(
-        'Pyodide ist nicht initialisiert. Bitte zuerst die ML-Engine starten.',
-      );
-    }
+    const manager = ensurePyodideReady();
 
     // Detect real dataset and prefetch CSV if needed
     const datasetId = DataGenerator.detectDatasetId(config.features);
@@ -263,7 +257,7 @@ export class DataGenerator {
   private static buildBundledCsvCode(config: DataGeneratorConfig, seed: number, csvContent: string): string {
     const rowCount = config.rowCount || 99999;
     // Base64 encode CSV to avoid Python string literal issues (quotes, backslashes)
-    const base64 = DataGenerator.toBase64(csvContent);
+    const base64 = toBase64(csvContent);
 
     return `
 import pandas as pd
@@ -285,18 +279,6 @@ result = {
 }
 result
 `.trim();
-  }
-
-  /** Encode a string as base64 (UTF-8 safe, handles large strings) */
-  private static toBase64(str: string): string {
-    const bytes = new TextEncoder().encode(str);
-    const chunks: string[] = [];
-    const chunkSize = 8192;
-    for (let i = 0; i < bytes.length; i += chunkSize) {
-      const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.length));
-      chunks.push(String.fromCharCode(...chunk));
-    }
-    return btoa(chunks.join(''));
   }
 
   private static buildIrisCode(config: DataGeneratorConfig, seed: number): string {
