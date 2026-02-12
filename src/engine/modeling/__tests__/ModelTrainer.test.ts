@@ -776,6 +776,72 @@ describe('ModelTrainer', () => {
   });
 
   // ===========================================
+  // NaN safety net (dropna)
+  // ===========================================
+
+  describe('NaN safety net', () => {
+    it('buildTrainingCode drops NaN rows before model.fit', () => {
+      const code = ModelTrainer.buildTrainingCode(
+        { type: 'logistic-regression', hyperparameters: {} },
+        'Ziel', 'klassifikation',
+      );
+      expect(code).toContain('X_train.notna().all(axis=1)');
+      expect(code).toContain('y_train.notna()');
+      expect(code).toContain('X_test.notna().all(axis=1)');
+      expect(code).toContain('y_test.notna()');
+      expect(code).toContain('_rows_dropped');
+    });
+
+    it('buildTrainingCode NaN drop comes after auto-encoding and before fit', () => {
+      const code = ModelTrainer.buildTrainingCode(
+        { type: 'decision-tree-classifier', hyperparameters: { max_depth: 5 } },
+        'Label', 'klassifikation',
+      );
+      const encodingIdx = code.indexOf('get_dummies');
+      const dropIdx = code.indexOf('_rows_dropped');
+      const fitIdx = code.indexOf('_model.fit');
+      expect(encodingIdx).toBeGreaterThan(-1);
+      expect(dropIdx).toBeGreaterThan(encodingIdx);
+      expect(fitIdx).toBeGreaterThan(dropIdx);
+    });
+
+    it('buildTrainingCode includes rowsDropped in result dict', () => {
+      const code = ModelTrainer.buildTrainingCode(
+        { type: 'logistic-regression', hyperparameters: {} },
+        'Ziel', 'klassifikation',
+      );
+      expect(code).toContain('"rowsDropped": int(_rows_dropped)');
+    });
+
+    it('buildClusteringCode drops NaN rows before fit_predict', () => {
+      const code = ModelTrainer.buildClusteringCode(
+        { type: 'kmeans', hyperparameters: { n_clusters: 3 } },
+      );
+      expect(code).toContain('df = df.dropna()');
+      expect(code).toContain('_rows_dropped');
+    });
+
+    it('buildClusteringCode NaN drop comes after auto-encoding and before fit_predict', () => {
+      const code = ModelTrainer.buildClusteringCode(
+        { type: 'kmeans', hyperparameters: { n_clusters: 3 } },
+      );
+      const encodingIdx = code.indexOf('get_dummies');
+      const dropIdx = code.indexOf('df = df.dropna()');
+      const fitIdx = code.indexOf('fit_predict');
+      expect(encodingIdx).toBeGreaterThan(-1);
+      expect(dropIdx).toBeGreaterThan(encodingIdx);
+      expect(fitIdx).toBeGreaterThan(dropIdx);
+    });
+
+    it('buildClusteringCode includes rowsDropped in result dict', () => {
+      const code = ModelTrainer.buildClusteringCode(
+        { type: 'dbscan', hyperparameters: { eps: 0.5 } },
+      );
+      expect(code).toContain('"rowsDropped": int(_rows_dropped)');
+    });
+  });
+
+  // ===========================================
   // getAlgorithmLabel
   // ===========================================
 

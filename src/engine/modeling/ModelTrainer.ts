@@ -336,6 +336,16 @@ if _non_numeric:
     X_test = _pd.get_dummies(X_test, columns=_non_numeric, drop_first=True)
     X_test = X_test.reindex(columns=X_train.columns, fill_value=0)
 
+# Drop rows with NaN (safety net for datasets with missing values)
+_pre_drop = len(X_train)
+_mask_train = X_train.notna().all(axis=1) & y_train.notna()
+X_train = X_train[_mask_train]
+y_train = y_train[_mask_train]
+_mask_test = X_test.notna().all(axis=1) & y_test.notna()
+X_test = X_test[_mask_test]
+y_test = y_test[_mask_test]
+_rows_dropped = _pre_drop - len(X_train)
+
 _model = ${className}(${hyperparamStr})
 _model.fit(X_train, y_train)
 y_pred = _model.predict(X_test)
@@ -348,6 +358,7 @@ _result = {
     "metrics": _metrics,
     "featureImportances": _feat_imp,
     "autoEncodedColumns": _auto_encoded_cols,
+    "rowsDropped": int(_rows_dropped),
 }
 _result
 `.trim();
@@ -374,6 +385,11 @@ if _non_numeric:
     _auto_encoded_cols = _non_numeric.copy()
     df = _pd.get_dummies(df, columns=_non_numeric, drop_first=True)
 
+# Drop rows with NaN (safety net for datasets with missing values)
+_pre_drop = len(df)
+df = df.dropna()
+_rows_dropped = _pre_drop - len(df)
+
 _model = ${className}(${hyperparamStr})
 _labels = _model.fit_predict(df)
 _n_clusters = len(set(_labels)) - (1 if -1 in _labels else 0)
@@ -389,6 +405,7 @@ _result = {
     "metrics": _metrics,
     "featureImportances": None,
     "autoEncodedColumns": _auto_encoded_cols,
+    "rowsDropped": int(_rows_dropped),
 }
 _result
 `.trim();
