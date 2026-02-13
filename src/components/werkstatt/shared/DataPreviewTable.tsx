@@ -101,6 +101,7 @@ export function DataPreviewTable({
   );
 
   const needsScroll = showAllRows || previewCount > 25;
+  const wideDataset = columns.length > 8;
 
   if (data.length === 0 && emptyState) {
     return <>{emptyState}</>;
@@ -177,7 +178,7 @@ export function DataPreviewTable({
             <TableHeader>
               <TableRow>
                 {/* Row number column */}
-                <TableHead className="py-1.5 px-2 w-10 text-right sticky top-0 bg-white z-10">
+                <TableHead className="py-1.5 px-2 w-10 text-right sticky top-0 left-0 bg-white z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
                   <Hash className="h-3 w-3 text-muted-foreground inline" />
                 </TableHead>
                 {columns.map(col => {
@@ -217,7 +218,7 @@ export function DataPreviewTable({
               ) : (
                 displayedRows.map((row, i) => (
                   <TableRow key={i}>
-                    <TableCell className="py-1 px-2 text-xs text-muted-foreground text-right w-10 font-mono">
+                    <TableCell className="py-1 px-2 text-xs text-muted-foreground text-right w-10 font-mono sticky left-0 bg-white z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
                       {i + 1}
                     </TableCell>
                     {columns.map(col => {
@@ -229,7 +230,11 @@ export function DataPreviewTable({
                           key={col}
                           className={`py-1 px-2 text-xs font-mono ${isMissing ? 'bg-red-50 text-red-400' : ''}`}
                         >
-                          {isMissing ? '–' : formatCellValue(value)}
+                          {isMissing ? '–' : wideDataset ? (
+                            <span className="max-w-[120px] truncate inline-block align-bottom" title={String(value ?? '')}>
+                              {formatCellValue(value)}
+                            </span>
+                          ) : formatCellValue(value)}
                         </TableCell>
                       );
                     })}

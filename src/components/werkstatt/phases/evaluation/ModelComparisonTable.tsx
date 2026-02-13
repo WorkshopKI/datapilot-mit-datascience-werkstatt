@@ -161,7 +161,7 @@ export function ModelComparisonTable({ models, projectType, selectedModelId, onS
                       {isSelected ? (
                         <Badge className="bg-green-100 text-green-700 border-green-200">
                           <CheckCircle2 className="h-3 w-3 mr-1" />
-                          Gewählt
+                          Gewählt für Deployment
                         </Badge>
                       ) : (
                         <Button
@@ -171,7 +171,7 @@ export function ModelComparisonTable({ models, projectType, selectedModelId, onS
                           className="gap-1"
                         >
                           <Check className="h-3.5 w-3.5" />
-                          Auswählen
+                          Für Deployment wählen
                         </Button>
                       )}
                     </TableCell>
@@ -182,8 +182,8 @@ export function ModelComparisonTable({ models, projectType, selectedModelId, onS
           </Table>
         </div>
         <p className="text-xs text-muted-foreground mt-3">
-          Das beste Modell nach Hauptmetrik ist grün hervorgehoben.
-          Klicke „Auswählen", um ein Modell für das Deployment festzulegen.
+          Die grün hervorgehobene Zeile zeigt das Modell mit der besten Hauptmetrik.
+          Über „Für Deployment wählen" legst du fest, welches Modell in der Deployment-Phase verwendet wird.
         </p>
       </CardContent>
     </Card>

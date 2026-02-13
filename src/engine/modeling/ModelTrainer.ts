@@ -28,6 +28,9 @@ export interface TrainingResult {
   model?: TrainedModel;
   error?: string;
   autoEncodedColumns?: string[];
+  samplingApplied?: boolean;
+  originalRowCount?: number;
+  sampledRowCount?: number;
 }
 
 /** Metadata about an available algorithm */
@@ -164,10 +167,11 @@ export class ModelTrainer {
     config: AlgorithmConfig,
     targetColumn: string,
     projectType: ProjectType,
+    sampleSize?: number,
   ): Promise<TrainingResult> {
     const manager = ensurePyodideReady();
 
-    const code = ModelTrainer.buildTrainingCode(config, targetColumn, projectType);
+    const code = ModelTrainer.buildTrainingCode(config, targetColumn, projectType, sampleSize);
     const startTime = Date.now();
     const execResult = await manager.runPython(code);
     const durationMs = Date.now() - startTime;
@@ -192,7 +196,7 @@ export class ModelTrainer {
       featureImportances: raw.featureImportances as FeatureImportance[] | undefined,
       trainedAt: new Date().toISOString(),
       trainingDurationMs: durationMs,
-      pythonCode: ModelTrainer.buildReadableCode(config, targetColumn, projectType),
+      pythonCode: ModelTrainer.buildReadableCode(config, targetColumn, projectType, sampleSize),
       targetColumn,
     };
 
@@ -200,16 +204,19 @@ export class ModelTrainer {
       success: true,
       model,
       autoEncodedColumns: autoEncodedColumns?.length ? autoEncodedColumns : undefined,
+      samplingApplied: raw.samplingApplied as boolean | undefined,
+      originalRowCount: raw.originalRowCount as number | undefined,
+      sampledRowCount: raw.sampledRowCount as number | undefined,
     };
   }
 
   /**
    * Train a clustering model on `df` (no train/test split needed).
    */
-  static async trainClusteringModel(config: AlgorithmConfig): Promise<TrainingResult> {
+  static async trainClusteringModel(config: AlgorithmConfig, sampleSize?: number): Promise<TrainingResult> {
     const manager = ensurePyodideReady();
 
-    const code = ModelTrainer.buildClusteringCode(config);
+    const code = ModelTrainer.buildClusteringCode(config, sampleSize);
     const startTime = Date.now();
     const execResult = await manager.runPython(code);
     const durationMs = Date.now() - startTime;
@@ -234,7 +241,7 @@ export class ModelTrainer {
       featureImportances: undefined,
       trainedAt: new Date().toISOString(),
       trainingDurationMs: durationMs,
-      pythonCode: ModelTrainer.buildReadableClusteringCode(config),
+      pythonCode: ModelTrainer.buildReadableClusteringCode(config, sampleSize),
       targetColumn: '',
     };
 
@@ -242,6 +249,9 @@ export class ModelTrainer {
       success: true,
       model,
       autoEncodedColumns: autoEncodedColumns?.length ? autoEncodedColumns : undefined,
+      samplingApplied: raw.samplingApplied as boolean | undefined,
+      originalRowCount: raw.originalRowCount as number | undefined,
+      sampledRowCount: raw.sampledRowCount as number | undefined,
     };
   }
 
@@ -271,6 +281,41 @@ export class ModelTrainer {
     return ALGORITHM_LABELS[algorithmType] ?? algorithmType;
   }
 
+  /**
+   * Get adjusted hyperparameter defaults for large datasets (>10k rows).
+   * Returns null if no adjustments are needed.
+   */
+  static getSmartDefaults(
+    algorithmType: AlgorithmType,
+    rowCount: number,
+  ): Record<string, number | string | boolean> | null {
+    if (rowCount <= 10_000) return null;
+
+    switch (algorithmType) {
+      case 'random-forest-classifier':
+      case 'random-forest-regressor':
+        return { n_estimators: 50, max_depth: 8 };
+      case 'decision-tree-classifier':
+      case 'decision-tree-regressor':
+        return { max_depth: 8 };
+      case 'knn-classifier':
+        return { n_neighbors: 7 };
+      default:
+        return null;
+    }
+  }
+
+  /**
+   * Get recommended sample size for large datasets.
+   * Returns null if the dataset is small enough (<= 10k rows).
+   */
+  static getRecommendedSampleSize(rowCount: number): number | null {
+    if (rowCount <= 10_000) return null;
+    if (rowCount <= 25_000) return 5_000;
+    if (rowCount <= 50_000) return 8_000;
+    return 10_000;
+  }
+
   // ============================================================
   // Code Builders (exposed for tests)
   // ============================================================
@@ -283,6 +328,7 @@ export class ModelTrainer {
     config: AlgorithmConfig,
     targetColumn: string,
     projectType: ProjectType,
+    sampleSize?: number,
   ): string {
     const importLine = SKLEARN_IMPORTS[config.type];
     const className = SKLEARN_CLASSES[config.type];
@@ -312,6 +358,14 @@ if 'df_train' not in dir() or 'df_test' not in dir():
     from sklearn.model_selection import train_test_split as _tts
     df_train, df_test = _tts(df, test_size=0.2, random_state=42)
 
+_original_row_count = len(df_train)
+_sampling_applied = False
+_sampled_row_count = _original_row_count
+${sampleSize ? `if len(df_train) > ${sampleSize}:
+    df_train = df_train.sample(n=${sampleSize}, random_state=42)
+    _sampling_applied = True
+    _sampled_row_count = ${sampleSize}
+` : ''}
 X_train = df_train.drop(columns=[_target])
 y_train = df_train[_target]
 X_test = df_test.drop(columns=[_target])
@@ -349,6 +403,9 @@ _result = {
     "featureImportances": _feat_imp,
     "autoEncodedColumns": _auto_encoded_cols,
     "rowsDropped": int(_rows_dropped),
+    "samplingApplied": _sampling_applied,
+    "originalRowCount": int(_original_row_count),
+    "sampledRowCount": int(_sampled_row_count),
 }
 _result
 `.trim();
@@ -357,7 +414,7 @@ _result
   /**
    * Build Python code for training a clustering model.
    */
-  static buildClusteringCode(config: AlgorithmConfig): string {
+  static buildClusteringCode(config: AlgorithmConfig, sampleSize?: number): string {
     const importLine = SKLEARN_IMPORTS[config.type];
     const className = SKLEARN_CLASSES[config.type];
     const hyperparamStr = ModelTrainer.buildHyperparamString(config.hyperparameters);
@@ -380,6 +437,14 @@ _pre_drop = len(df)
 df = df.dropna()
 _rows_dropped = _pre_drop - len(df)
 
+_original_row_count = len(df)
+_sampling_applied = False
+_sampled_row_count = _original_row_count
+${sampleSize ? `if len(df) > ${sampleSize}:
+    df = df.sample(n=${sampleSize}, random_state=42)
+    _sampling_applied = True
+    _sampled_row_count = ${sampleSize}
+` : ''}
 _model = ${className}(${hyperparamStr})
 _labels = _model.fit_predict(df)
 _n_clusters = len(set(_labels)) - (1 if -1 in _labels else 0)
@@ -396,6 +461,9 @@ _result = {
     "featureImportances": None,
     "autoEncodedColumns": _auto_encoded_cols,
     "rowsDropped": int(_rows_dropped),
+    "samplingApplied": _sampling_applied,
+    "originalRowCount": int(_original_row_count),
+    "sampledRowCount": int(_sampled_row_count),
 }
 _result
 `.trim();
@@ -494,6 +562,7 @@ _feat_imp.sort(key=lambda x: x["importance"], reverse=True)`.trim();
     config: AlgorithmConfig,
     targetColumn: string,
     projectType: ProjectType,
+    sampleSize?: number,
   ): string {
     const importLine = SKLEARN_IMPORTS[config.type];
     const className = SKLEARN_CLASSES[config.type];
@@ -513,6 +582,13 @@ print(f"F1-Score: {f1:.4f}")`
 rmse = mean_squared_error(y_test, y_pred) ** 0.5
 print(f"R²: {r2:.4f}")
 print(f"RMSE: {rmse:.4f}")`;
+
+    const samplingBlock = sampleSize ? `
+# Sampling: Trainingsdaten auf ${sampleSize} Zeilen reduziert
+# Für ein Lern-Projekt liefert das vergleichbare Ergebnisse bei kürzerer Trainingszeit.
+df_train = df_train.sample(n=${sampleSize}, random_state=42)
+
+` : '';
 
     return `${importLine}
 ${metricsImports}
@@ -535,7 +611,7 @@ if non_numeric:
     X_test = pd.get_dummies(X_test, columns=non_numeric, drop_first=True)
     X_test = X_test.reindex(columns=X_train.columns, fill_value=0)
 
-# Modell erstellen und trainieren
+${samplingBlock}# Modell erstellen und trainieren
 model = ${className}(${hyperparamStr})
 model.fit(X_train, y_train)
 
@@ -549,10 +625,17 @@ ${metricsCode}`;
   /**
    * Build human-readable clustering code (for display).
    */
-  private static buildReadableClusteringCode(config: AlgorithmConfig): string {
+  private static buildReadableClusteringCode(config: AlgorithmConfig, sampleSize?: number): string {
     const importLine = SKLEARN_IMPORTS[config.type];
     const className = SKLEARN_CLASSES[config.type];
     const hyperparamStr = ModelTrainer.buildHyperparamString(config.hyperparameters);
+
+    const samplingBlock = sampleSize ? `
+# Sampling: Daten auf ${sampleSize} Zeilen reduziert
+# Für ein Lern-Projekt liefert das vergleichbare Ergebnisse bei kürzerer Trainingszeit.
+df = df.sample(n=${sampleSize}, random_state=42)
+
+` : '';
 
     return `${importLine}
 from sklearn.metrics import silhouette_score
@@ -562,7 +645,7 @@ non_numeric = df.select_dtypes(exclude=['number']).columns.tolist()
 if non_numeric:
     df = pd.get_dummies(df, columns=non_numeric, drop_first=True)
 
-# Clustering-Modell erstellen und anwenden
+${samplingBlock}# Clustering-Modell erstellen und anwenden
 model = ${className}(${hyperparamStr})
 labels = model.fit_predict(df)
 

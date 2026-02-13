@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Play } from 'lucide-react';
+import { Play, Info } from 'lucide-react';
 import { GlossaryLink } from '../../GlossaryLink';
 import { MethodCard } from './MethodCard';
 import { ColumnCheckboxes } from './ColumnCheckboxes';
@@ -44,6 +44,16 @@ export function MissingValuesForm({ dataSummary, isApplying, onApply }: {
         <p className="text-sm text-muted-foreground mb-2">
           Die Behandlung fehlender Werte heißt <GlossaryLink term="Imputation" termId="imputation" />.
         </p>
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-3">
+          <div className="flex gap-2">
+            <Info className="h-4 w-4 text-blue-500 shrink-0 mt-0.5" />
+            <p className="text-xs text-blue-800">
+              <span className="font-medium">Empfehlung:</span>{' '}
+              Median für numerische Spalten (robust bei Ausreißern), Häufigster Wert für kategoriale Spalten.
+              Bei &lt;5% fehlenden Werten kann auch Zeilen entfernen sinnvoll sein.
+            </p>
+          </div>
+        </div>
         <Label className="mb-2 block">Strategie</Label>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
           <MethodCard value="drop-rows" selected={strategy === 'drop-rows'} label="Zeilen entfernen" description="Löscht alle Zeilen mit fehlenden Werten. Einfach, aber es gehen Daten verloren – nur bei wenigen Lücken sinnvoll." onSelect={(v) => setStrategy(v as MissingValuesConfig['strategy'])} />
@@ -61,6 +71,7 @@ export function MissingValuesForm({ dataSummary, isApplying, onApply }: {
         </div>
       )}
 
+      {/* TODO: pass per-column missing counts when PreparedDataSummary is extended */}
       <ColumnCheckboxes label="Spalten (leer = alle betroffenen)" columns={dataSummary.columnNames} selected={selectedCols} onChange={setSelectedCols} />
 
       <Button onClick={handleApply} disabled={isApplying} className="gap-2">

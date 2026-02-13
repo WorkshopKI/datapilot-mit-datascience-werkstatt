@@ -1,16 +1,20 @@
 // Modeling Phase – Algorithm Selection + Training
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
+import { Separator } from '@/components/ui/separator';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import {
+  Collapsible, CollapsibleContent, CollapsibleTrigger,
+} from '@/components/ui/collapsible';
+import {
   Brain, Loader2, AlertTriangle, Play, Trash2,
-  AlertCircle, Settings2, Clock, CheckCircle2,
+  AlertCircle, Settings2, Clock, CheckCircle2, ChevronDown, Zap, Info,
 } from 'lucide-react';
 import { GlossaryLink } from '../GlossaryLink';
 import { GlossaryTermsCard } from '../shared/GlossaryTermsCard';
@@ -52,11 +56,30 @@ export function Modeling({ project, onUpdateProject }: ModelingProps) {
 
   // Auto-encoding info from training result
   const [autoEncodedColumns, setAutoEncodedColumns] = useState<string[]>([]);
+  const [encodingOpen, setEncodingOpen] = useState(false);
+
+  // Sampling state
+  const [samplingEnabled, setSamplingEnabled] = useState(true);
+  const [sampleSize, setSampleSize] = useState(5000);
+  const [lastTrainingSamplingInfo, setLastTrainingSamplingInfo] = useState<{
+    applied: boolean;
+    originalRows: number;
+    sampledRows: number;
+  } | null>(null);
+
+  // Ref for auto-scroll to trained models
+  const modelListRef = useRef<HTMLDivElement>(null);
 
   const isClustering = project.type === 'clustering';
   const hasSplit = project.preparedDataSummary?.hasSplit ?? false;
   const availableAlgorithms = ModelTrainer.getAvailableAlgorithms(project.type);
   const availableColumns = project.preparedDataSummary?.columnNames ?? [];
+  const numericColumns = project.preparedDataSummary?.numericColumns ?? [];
+  const categoricalColumns = project.preparedDataSummary?.categoricalColumns ?? [];
+
+  const rowCount = project.preparedDataSummary?.rowCount ?? 0;
+  const isLargeDataset = rowCount > 10_000;
+  const recommendedSampleSize = ModelTrainer.getRecommendedSampleSize(rowCount);
 
   const handleAlgorithmSelect = useCallback((algType: AlgorithmType) => {
     setSelectedAlgorithm(algType);
@@ -66,8 +89,21 @@ export function Modeling({ project, onUpdateProject }: ModelingProps) {
     for (const def of defs) {
       defaults[def.name] = def.default;
     }
+
+    // Apply smart defaults for large datasets
+    const smartDefaults = ModelTrainer.getSmartDefaults(algType, rowCount);
+    if (smartDefaults) {
+      Object.assign(defaults, smartDefaults);
+    }
+
     setHyperparams(defaults);
-  }, []);
+
+    // Auto-set sampling for large datasets
+    if (recommendedSampleSize) {
+      setSamplingEnabled(true);
+      setSampleSize(recommendedSampleSize);
+    }
+  }, [rowCount, recommendedSampleSize]);
 
   const handleTrain = useCallback(async () => {
     if (!selectedAlgorithm) return;
@@ -77,6 +113,9 @@ export function Modeling({ project, onUpdateProject }: ModelingProps) {
     setViewState('training');
     setErrorMessage(null);
     setAutoEncodedColumns([]);
+    setLastTrainingSamplingInfo(null);
+
+    const effectiveSampleSize = isLargeDataset && samplingEnabled ? sampleSize : undefined;
 
     try {
       const config: AlgorithmConfig = {
@@ -85,17 +124,29 @@ export function Modeling({ project, onUpdateProject }: ModelingProps) {
       };
 
       const result = isClustering
-        ? await ModelTrainer.trainClusteringModel(config)
-        : await ModelTrainer.trainModel(config, targetColumn, project.type);
+        ? await ModelTrainer.trainClusteringModel(config, effectiveSampleSize)
+        : await ModelTrainer.trainModel(config, targetColumn, project.type, effectiveSampleSize);
 
       if (!result.success) {
-        setErrorMessage(result.error ?? 'Training fehlgeschlagen');
+        let error = result.error ?? 'Training fehlgeschlagen';
+        if (/timeout|zeitüberschreitung/i.test(error)) {
+          error += ' Tipps: Reduziere die Max Tiefe, verringere die Anzahl Bäume, oder führe ein Feature-Selection in der Datenvorbereitung durch.';
+        }
+        setErrorMessage(error);
         setViewState('ready');
         return;
       }
 
       if (result.autoEncodedColumns?.length) {
         setAutoEncodedColumns(result.autoEncodedColumns);
+      }
+
+      if (result.samplingApplied) {
+        setLastTrainingSamplingInfo({
+          applied: true,
+          originalRows: result.originalRowCount ?? 0,
+          sampledRows: result.sampledRowCount ?? 0,
+        });
       }
 
       const newModels = [...trainedModels, result.model!];
@@ -105,11 +156,18 @@ export function Modeling({ project, onUpdateProject }: ModelingProps) {
         trainedModels: newModels,
         targetColumn: isClustering ? '' : targetColumn,
       });
+
+      // Auto-scroll to trained models list
+      setTimeout(() => modelListRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100);
     } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : 'Unbekannter Fehler');
+      let message = err instanceof Error ? err.message : 'Unbekannter Fehler';
+      if (/timeout|zeitüberschreitung/i.test(message)) {
+        message += ' Tipps: Reduziere die Max Tiefe, verringere die Anzahl Bäume, oder führe ein Feature-Selection in der Datenvorbereitung durch.';
+      }
+      setErrorMessage(message);
     }
     setViewState('ready');
-  }, [selectedAlgorithm, targetColumn, hyperparams, isClustering, hasSplit, trainedModels, project.type, onUpdateProject]);
+  }, [selectedAlgorithm, targetColumn, hyperparams, isClustering, hasSplit, trainedModels, project.type, onUpdateProject, isLargeDataset, samplingEnabled, sampleSize]);
 
   const handleRemoveModel = useCallback((modelId: string) => {
     const newModels = trainedModels.filter(m => m.id !== modelId);
@@ -168,6 +226,12 @@ export function Modeling({ project, onUpdateProject }: ModelingProps) {
   const isTraining = viewState === 'training';
   const hyperparamDefs = selectedAlgorithm ? ModelTrainer.getDefaultHyperparameters(selectedAlgorithm) : [];
 
+  const getColumnType = (col: string): string => {
+    if (numericColumns.includes(col)) return 'numerisch';
+    if (categoricalColumns.includes(col)) return 'kategorial';
+    return '';
+  };
+
   return (
     <div className="space-y-6">
       {/* Error banner */}
@@ -178,52 +242,72 @@ export function Modeling({ project, onUpdateProject }: ModelingProps) {
         </div>
       )}
 
-      {/* Target Column Selection (not for clustering) */}
-      {!isClustering && (
-        <Card>
+      {/* Auto-encoding info banner (collapsible) */}
+      {autoEncodedColumns.length > 0 && (
+        <Collapsible open={encodingOpen} onOpenChange={setEncodingOpen}>
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+            <CollapsibleTrigger className="w-full">
+              <div className="flex items-center gap-3">
+                <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0" />
+                <p className="text-sm font-medium text-amber-800 flex-1 text-left">
+                  Automatisches Encoding: {autoEncodedColumns.length} kategoriale Spalte{autoEncodedColumns.length !== 1 ? 'n' : ''} umgewandelt
+                </p>
+                <ChevronDown className={`h-4 w-4 text-amber-600 transition-transform ${encodingOpen ? 'rotate-180' : ''}`} />
+              </div>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <div className="text-sm text-amber-700 mt-3 ml-8">
+                <p>
+                  Kategoriale Spalten wurden automatisch per One-Hot Encoding umgewandelt:{' '}
+                  <span className="font-mono font-medium">{autoEncodedColumns.join(', ')}</span>.
+                </p>
+                <p className="mt-1">
+                  Tipp: In der <span className="font-medium">Data Preparation</span> kannst du die{' '}
+                  <GlossaryLink term="Encoding" termId="encoding">Encoding</GlossaryLink>-Methode selbst wählen.
+                </p>
+              </div>
+            </CollapsibleContent>
+          </div>
+        </Collapsible>
+      )}
+
+      {/* Trained Models List (moved up for visibility) */}
+      {trainedModels.length > 0 && (
+        <Card ref={modelListRef}>
           <CardHeader>
-            <CardTitle className="text-base">Zielvariable</CardTitle>
+            <CardTitle className="text-base flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 text-green-600" />
+              Trainierte Modelle ({trainedModels.length})
+            </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="max-w-sm">
-              <Label>Zielspalte auswählen</Label>
-              <Select value={targetColumn} onValueChange={setTargetColumn} disabled={isTraining}>
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Spalte auswählen..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableColumns.map(col => (
-                    <SelectItem key={col} value={col}>{col}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground mt-1">
-                Die Spalte, die das Modell vorhersagen soll.
-              </p>
-            </div>
+          <CardContent className="space-y-3">
+            {trainedModels.map((model) => (
+              <TrainedModelCard
+                key={model.id}
+                model={model}
+                projectType={project.type}
+                isSelected={project.selectedModelId === model.id}
+                onRemove={() => handleRemoveModel(model.id)}
+                disabled={isTraining}
+              />
+            ))}
           </CardContent>
         </Card>
       )}
 
-      {/* Auto-encoding info banner */}
-      {autoEncodedColumns.length > 0 && (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
-          <div className="flex gap-3">
-            <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
-            <div className="text-sm">
-              <p className="font-medium text-amber-800 mb-1">Automatisches Encoding durchgeführt</p>
-              <p className="text-amber-700">
-                Kategoriale Spalten wurden automatisch per One-Hot Encoding umgewandelt:{' '}
-                <span className="font-mono font-medium">{autoEncodedColumns.join(', ')}</span>.
-                {' '}Tipp: In der <span className="font-medium">Data Preparation</span> kannst du die{' '}
-                <GlossaryLink term="Encoding" termId="encoding">Encoding</GlossaryLink>-Methode selbst wählen.
-              </p>
-            </div>
-          </div>
+      {/* Sampling info banner (after training with sampling) */}
+      {lastTrainingSamplingInfo?.applied && (
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 flex items-start gap-2">
+          <Info className="h-4 w-4 text-blue-500 shrink-0 mt-0.5" />
+          <p className="text-sm text-blue-700">
+            Sampling aktiv: Modell wurde auf {lastTrainingSamplingInfo.sampledRows.toLocaleString('de-DE')} von{' '}
+            {lastTrainingSamplingInfo.originalRows.toLocaleString('de-DE')} Trainingszeilen trainiert.
+            Für ein Lern-Projekt liefert das vergleichbare Ergebnisse bei kürzerer Trainingszeit.
+          </p>
         </div>
       )}
 
-      {/* Algorithm Selection */}
+      {/* Algorithm Selection (now includes target column at top) */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
@@ -231,7 +315,41 @@ export function Modeling({ project, onUpdateProject }: ModelingProps) {
             Algorithmus auswählen
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          {/* Inline target column selector (not for clustering) */}
+          {!isClustering && (
+            <>
+              <div className="flex items-center gap-3 max-w-sm">
+                <Label className="shrink-0">Zielspalte:</Label>
+                <Select value={targetColumn} onValueChange={setTargetColumn} disabled={isTraining}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Spalte auswählen..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableColumns.map(col => {
+                      const colType = getColumnType(col);
+                      return (
+                        <SelectItem key={col} value={col}>
+                          {col}{colType ? ` (${colType})` : ''}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              </div>
+              {project.type === 'klassifikation' && (
+                <p className="text-xs text-muted-foreground">
+                  Tipp: Für Klassifikation eignet sich eine kategoriale Spalte als Ziel.
+                </p>
+              )}
+              {project.type === 'regression' && (
+                <p className="text-xs text-muted-foreground">
+                  Tipp: Für Regression eignet sich eine numerische Spalte als Ziel.
+                </p>
+              )}
+              <Separator />
+            </>
+          )}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {availableAlgorithms.map((algo) => (
               <button
@@ -271,13 +389,72 @@ export function Modeling({ project, onUpdateProject }: ModelingProps) {
                 disabled={isTraining}
               />
             ))}
+            {ModelTrainer.getSmartDefaults(selectedAlgorithm, rowCount) && (
+              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                <Zap className="h-3 w-3" />
+                Hyperparameter wurden für den großen Datensatz angepasst.
+              </p>
+            )}
           </CardContent>
         </Card>
       )}
 
-      {/* Train Button */}
+      {/* Sampling card for large datasets */}
+      {isLargeDataset && selectedAlgorithm && (
+        <Card className="border-blue-200 bg-blue-50/50">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Zap className="h-4 w-4 text-blue-600" />
+              Intelligentes Sampling
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm text-blue-800">
+              Dein Datensatz hat <span className="font-medium">{rowCount.toLocaleString('de-DE')} Zeilen</span>.
+              Für ein Lern-Projekt reicht ein repräsentatives Sample – das Training wird deutlich schneller.
+            </p>
+            <div className="flex items-center gap-3">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={samplingEnabled}
+                  onChange={(e) => setSamplingEnabled(e.target.checked)}
+                  disabled={isTraining}
+                  className="rounded border-blue-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm font-medium text-blue-900">Sampling aktivieren</span>
+              </label>
+              {samplingEnabled && (
+                <Select
+                  value={String(sampleSize)}
+                  onValueChange={(val) => setSampleSize(Number(val))}
+                  disabled={isTraining}
+                >
+                  <SelectTrigger className="w-[160px] h-8 text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="3000">3.000 Zeilen</SelectItem>
+                    <SelectItem value="5000">5.000 Zeilen</SelectItem>
+                    <SelectItem value="8000">8.000 Zeilen</SelectItem>
+                    <SelectItem value="10000">10.000 Zeilen</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+            {!samplingEnabled && (
+              <p className="text-xs text-amber-700 flex items-center gap-1">
+                <AlertTriangle className="h-3 w-3" />
+                Ohne Sampling kann das Training bei großen Datensätzen deutlich länger dauern.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Train + Cancel buttons */}
       {selectedAlgorithm && (
-        <div className="flex justify-center">
+        <div className="flex gap-3 justify-center">
           <Button
             onClick={handleTrain}
             disabled={isTraining || (!isClustering && !targetColumn)}
@@ -296,47 +473,23 @@ export function Modeling({ project, onUpdateProject }: ModelingProps) {
               </>
             )}
           </Button>
+          {isTraining && (
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={() => { setViewState('ready'); setErrorMessage(null); }}
+              className="gap-2"
+            >
+              Abbrechen
+            </Button>
+          )}
         </div>
-      )}
-
-      {/* Trained Models List */}
-      {trainedModels.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 text-green-600" />
-              Trainierte Modelle ({trainedModels.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {trainedModels.map((model) => (
-              <TrainedModelCard
-                key={model.id}
-                model={model}
-                projectType={project.type}
-                isSelected={project.selectedModelId === model.id}
-                onRemove={() => handleRemoveModel(model.id)}
-                disabled={isTraining}
-              />
-            ))}
-          </CardContent>
-        </Card>
       )}
 
       <GlossaryTermsCard terms={GLOSSARY_TERMS} />
 
       {/* Lernbereich-Link (Pattern 12) */}
       <LernbereichLink />
-
-      {/* Training overlay */}
-      {isTraining && (
-        <div className="fixed inset-0 bg-black/10 flex items-center justify-center z-50">
-          <Card className="p-6 flex items-center gap-3">
-            <Loader2 className="h-5 w-5 animate-spin text-orange-500" />
-            <span className="font-medium">Modell wird trainiert...</span>
-          </Card>
-        </div>
-      )}
     </div>
   );
 }
@@ -431,4 +584,3 @@ function TrainedModelCard({ model, projectType, isSelected, onRemove, disabled }
     </div>
   );
 }
-

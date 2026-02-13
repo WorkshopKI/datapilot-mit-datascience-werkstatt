@@ -817,4 +817,222 @@ describe('ModelTrainer', () => {
       expect(ModelTrainer.getAlgorithmLabel('kmeans')).toBe('K-Means');
     });
   });
+
+  // ===========================================
+  // getSmartDefaults
+  // ===========================================
+
+  describe('getSmartDefaults', () => {
+    it('returns null for small datasets (<= 10k rows)', () => {
+      expect(ModelTrainer.getSmartDefaults('random-forest-classifier', 5000)).toBeNull();
+      expect(ModelTrainer.getSmartDefaults('random-forest-classifier', 10000)).toBeNull();
+    });
+
+    it('returns adjusted params for random forest on large datasets', () => {
+      const defaults = ModelTrainer.getSmartDefaults('random-forest-classifier', 20000);
+      expect(defaults).toEqual({ n_estimators: 50, max_depth: 8 });
+    });
+
+    it('returns adjusted params for random forest regressor on large datasets', () => {
+      const defaults = ModelTrainer.getSmartDefaults('random-forest-regressor', 15000);
+      expect(defaults).toEqual({ n_estimators: 50, max_depth: 8 });
+    });
+
+    it('returns adjusted params for decision tree on large datasets', () => {
+      const defaults = ModelTrainer.getSmartDefaults('decision-tree-classifier', 15000);
+      expect(defaults).toEqual({ max_depth: 8 });
+    });
+
+    it('returns adjusted params for decision tree regressor on large datasets', () => {
+      const defaults = ModelTrainer.getSmartDefaults('decision-tree-regressor', 15000);
+      expect(defaults).toEqual({ max_depth: 8 });
+    });
+
+    it('returns adjusted params for KNN on large datasets', () => {
+      const defaults = ModelTrainer.getSmartDefaults('knn-classifier', 15000);
+      expect(defaults).toEqual({ n_neighbors: 7 });
+    });
+
+    it('returns null for algorithms without adjustments', () => {
+      expect(ModelTrainer.getSmartDefaults('logistic-regression', 20000)).toBeNull();
+      expect(ModelTrainer.getSmartDefaults('linear-regression', 20000)).toBeNull();
+      expect(ModelTrainer.getSmartDefaults('kmeans', 20000)).toBeNull();
+    });
+  });
+
+  // ===========================================
+  // getRecommendedSampleSize
+  // ===========================================
+
+  describe('getRecommendedSampleSize', () => {
+    it('returns null for small datasets (<= 10k)', () => {
+      expect(ModelTrainer.getRecommendedSampleSize(5000)).toBeNull();
+      expect(ModelTrainer.getRecommendedSampleSize(10000)).toBeNull();
+    });
+
+    it('returns 5000 for datasets up to 25k', () => {
+      expect(ModelTrainer.getRecommendedSampleSize(15000)).toBe(5000);
+      expect(ModelTrainer.getRecommendedSampleSize(25000)).toBe(5000);
+    });
+
+    it('returns 8000 for datasets up to 50k', () => {
+      expect(ModelTrainer.getRecommendedSampleSize(30000)).toBe(8000);
+      expect(ModelTrainer.getRecommendedSampleSize(50000)).toBe(8000);
+    });
+
+    it('returns 10000 for datasets over 50k', () => {
+      expect(ModelTrainer.getRecommendedSampleSize(60000)).toBe(10000);
+      expect(ModelTrainer.getRecommendedSampleSize(100000)).toBe(10000);
+    });
+  });
+
+  // ===========================================
+  // Sampling in code builders
+  // ===========================================
+
+  describe('sampling in buildTrainingCode', () => {
+    it('includes sampling block when sampleSize is provided', () => {
+      const code = ModelTrainer.buildTrainingCode(
+        { type: 'random-forest-classifier', hyperparameters: { n_estimators: 50 } },
+        'Ziel', 'klassifikation', 5000,
+      );
+      expect(code).toContain('if len(df_train) > 5000');
+      expect(code).toContain('df_train = df_train.sample(n=5000, random_state=42)');
+      expect(code).toContain('_sampling_applied = True');
+      expect(code).toContain('_sampled_row_count = 5000');
+    });
+
+    it('does not include sampling block when sampleSize is undefined', () => {
+      const code = ModelTrainer.buildTrainingCode(
+        { type: 'logistic-regression', hyperparameters: {} },
+        'Ziel', 'klassifikation',
+      );
+      expect(code).not.toContain('df_train.sample(n=');
+      expect(code).toContain('_sampling_applied = False');
+    });
+
+    it('includes sampling info in result dict', () => {
+      const code = ModelTrainer.buildTrainingCode(
+        { type: 'logistic-regression', hyperparameters: {} },
+        'Ziel', 'klassifikation', 3000,
+      );
+      expect(code).toContain('"samplingApplied": _sampling_applied');
+      expect(code).toContain('"originalRowCount": int(_original_row_count)');
+      expect(code).toContain('"sampledRowCount": int(_sampled_row_count)');
+    });
+
+    it('sampling comes before feature/target split', () => {
+      const code = ModelTrainer.buildTrainingCode(
+        { type: 'random-forest-classifier', hyperparameters: {} },
+        'Ziel', 'klassifikation', 5000,
+      );
+      const samplingIdx = code.indexOf('df_train.sample(n=5000');
+      const splitIdx = code.indexOf('X_train = df_train.drop');
+      expect(samplingIdx).toBeGreaterThan(-1);
+      expect(splitIdx).toBeGreaterThan(samplingIdx);
+    });
+  });
+
+  describe('sampling in buildClusteringCode', () => {
+    it('includes sampling block when sampleSize is provided', () => {
+      const code = ModelTrainer.buildClusteringCode(
+        { type: 'kmeans', hyperparameters: { n_clusters: 3 } }, 5000,
+      );
+      expect(code).toContain('if len(df) > 5000');
+      expect(code).toContain('df = df.sample(n=5000, random_state=42)');
+      expect(code).toContain('_sampling_applied = True');
+    });
+
+    it('does not include sampling block when sampleSize is undefined', () => {
+      const code = ModelTrainer.buildClusteringCode(
+        { type: 'kmeans', hyperparameters: { n_clusters: 3 } },
+      );
+      expect(code).not.toContain('df.sample(n=');
+      expect(code).toContain('_sampling_applied = False');
+    });
+
+    it('sampling comes after NaN drop and before fit_predict', () => {
+      const code = ModelTrainer.buildClusteringCode(
+        { type: 'kmeans', hyperparameters: { n_clusters: 3 } }, 5000,
+      );
+      const dropIdx = code.indexOf('df = df.dropna()');
+      const samplingIdx = code.indexOf('df = df.sample(n=5000');
+      const fitIdx = code.indexOf('fit_predict');
+      expect(dropIdx).toBeGreaterThan(-1);
+      expect(samplingIdx).toBeGreaterThan(dropIdx);
+      expect(fitIdx).toBeGreaterThan(samplingIdx);
+    });
+  });
+
+  // ===========================================
+  // Sampling in trainModel / trainClusteringModel
+  // ===========================================
+
+  describe('trainModel with sampling', () => {
+    it('passes sampling info in result when sampling applied', async () => {
+      mockPyodideReady();
+      mockRunPythonSuccess({
+        ...makeClassificationResult(),
+        samplingApplied: true,
+        originalRowCount: 20000,
+        sampledRowCount: 5000,
+      });
+
+      const result = await ModelTrainer.trainModel(
+        { type: 'random-forest-classifier', hyperparameters: { n_estimators: 50 } },
+        'Ziel', 'klassifikation', 5000,
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.samplingApplied).toBe(true);
+      expect(result.originalRowCount).toBe(20000);
+      expect(result.sampledRowCount).toBe(5000);
+    });
+
+    it('includes sampling in readable code when sampleSize provided', async () => {
+      mockPyodideReady();
+      mockRunPythonSuccess(makeClassificationResult());
+
+      const result = await ModelTrainer.trainModel(
+        { type: 'logistic-regression', hyperparameters: {} },
+        'Ziel', 'klassifikation', 5000,
+      );
+
+      expect(result.model!.pythonCode).toContain('df_train = df_train.sample(n=5000');
+      expect(result.model!.pythonCode).toContain('Sampling');
+    });
+  });
+
+  describe('trainClusteringModel with sampling', () => {
+    it('passes sampling info in result when sampling applied', async () => {
+      mockPyodideReady();
+      mockRunPythonSuccess({
+        ...makeClusteringResult(),
+        samplingApplied: true,
+        originalRowCount: 15000,
+        sampledRowCount: 5000,
+      });
+
+      const result = await ModelTrainer.trainClusteringModel(
+        { type: 'kmeans', hyperparameters: { n_clusters: 3 } }, 5000,
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.samplingApplied).toBe(true);
+      expect(result.originalRowCount).toBe(15000);
+      expect(result.sampledRowCount).toBe(5000);
+    });
+
+    it('includes sampling in readable code when sampleSize provided', async () => {
+      mockPyodideReady();
+      mockRunPythonSuccess(makeClusteringResult());
+
+      const result = await ModelTrainer.trainClusteringModel(
+        { type: 'kmeans', hyperparameters: { n_clusters: 3 } }, 5000,
+      );
+
+      expect(result.model!.pythonCode).toContain('df = df.sample(n=5000');
+      expect(result.model!.pythonCode).toContain('Sampling');
+    });
+  });
 });

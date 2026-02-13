@@ -5,10 +5,11 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
   Settings2, Plus, Trash2, Loader2, AlertTriangle,
   Code, Eye, ListOrdered, AlertCircle,
-  Copy, Check,
+  Copy, Check, ChevronUp, ChevronDown,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { GlossaryTermsCard } from '../shared/GlossaryTermsCard';
@@ -53,6 +54,7 @@ export function DataPreparation({ project, onUpdateProject }: DataPreparationPro
 
   // New step form state
   const [selectedStepType, setSelectedStepType] = useState<PipelineStepType | ''>('');
+  const [addStepOpen, setAddStepOpen] = useState(pipelineSteps.length === 0);
 
   // Determine if data is available
   const hasData = !!project.dataSource;
@@ -315,11 +317,9 @@ export function DataPreparation({ project, onUpdateProject }: DataPreparationPro
           <div className="space-y-4">
             {/* Applied steps */}
             {pipelineSteps.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Angewandte Schritte</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
+              <div>
+                <h4 className="text-sm font-semibold text-muted-foreground mb-2">Angewandte Schritte</h4>
+                <div className="space-y-2">
                   {pipelineSteps.map((step, index) => (
                     <div
                       key={step.id}
@@ -347,77 +347,82 @@ export function DataPreparation({ project, onUpdateProject }: DataPreparationPro
                       </Button>
                     </div>
                   ))}
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             )}
 
-            {/* Add new step */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base flex items-center gap-2">
+            {/* Add new step – collapsible */}
+            <Collapsible open={addStepOpen} onOpenChange={setAddStepOpen}>
+              <CollapsibleTrigger asChild>
+                <Button variant="outline" className="w-full gap-2 border-dashed">
                   <Plus className="h-4 w-4" />
                   Schritt hinzufügen
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <Label className="mb-2 block">Schritt-Typ wählen</Label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {STEP_TYPE_CARDS.map((card) => {
-                      const isDisabled = (card.type === 'train-test-split' && hasSplit) || isApplying;
-                      const isSelected = selectedStepType === card.type;
-                      const Icon = card.icon;
-                      return (
-                        <div
-                          key={card.type}
-                          className={cn(
-                            'rounded-xl border p-3 transition-all',
-                            isDisabled
-                              ? 'opacity-50 cursor-not-allowed'
-                              : 'cursor-pointer',
-                            isSelected
-                              ? 'border-orange-500 bg-orange-50'
-                              : isDisabled ? '' : 'hover:border-orange-200 hover:shadow-sm'
-                          )}
-                          onClick={() => !isDisabled && setSelectedStepType(card.type)}
-                        >
-                          <div className="flex items-start gap-2.5">
-                            <Icon className={cn(
-                              'h-5 w-5 shrink-0 mt-0.5',
-                              isSelected ? 'text-orange-500' : 'text-muted-foreground'
-                            )} />
-                            <div className="min-w-0">
-                              <p className={cn(
-                                'font-medium text-sm',
-                                isSelected ? 'text-orange-800' : ''
-                              )}>
-                                {card.label}
-                              </p>
-                              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                                {card.description}
-                              </p>
-                              {card.type === 'train-test-split' && hasSplit && (
-                                <p className="text-xs text-amber-600 mt-1">Bereits vorhanden</p>
+                  {addStepOpen ? <ChevronUp className="h-3.5 w-3.5 ml-auto" /> : <ChevronDown className="h-3.5 w-3.5 ml-auto" />}
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <Card className="mt-3">
+                  <CardContent className="pt-4 space-y-4">
+                    <div>
+                      <Label className="mb-2 block">Schritt-Typ wählen</Label>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {STEP_TYPE_CARDS.map((card) => {
+                          const isDisabled = (card.type === 'train-test-split' && hasSplit) || isApplying;
+                          const isSelected = selectedStepType === card.type;
+                          const Icon = card.icon;
+                          return (
+                            <div
+                              key={card.type}
+                              className={cn(
+                                'rounded-xl border p-3 transition-all',
+                                isDisabled
+                                  ? 'opacity-50 cursor-not-allowed'
+                                  : 'cursor-pointer',
+                                isSelected
+                                  ? 'border-orange-500 bg-orange-50'
+                                  : isDisabled ? '' : 'hover:border-orange-200 hover:shadow-sm'
                               )}
+                              onClick={() => !isDisabled && setSelectedStepType(card.type)}
+                            >
+                              <div className="flex items-start gap-2.5">
+                                <Icon className={cn(
+                                  'h-5 w-5 shrink-0 mt-0.5',
+                                  isSelected ? 'text-orange-500' : 'text-muted-foreground'
+                                )} />
+                                <div className="min-w-0">
+                                  <p className={cn(
+                                    'font-medium text-sm',
+                                    isSelected ? 'text-orange-800' : ''
+                                  )}>
+                                    {card.label}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                                    {card.description}
+                                  </p>
+                                  {card.type === 'train-test-split' && hasSplit && (
+                                    <p className="text-xs text-amber-600 mt-1">Bereits vorhanden</p>
+                                  )}
+                                </div>
+                              </div>
                             </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
+                          );
+                        })}
+                      </div>
+                    </div>
 
-                {selectedStepType && dataSummary && (
-                  <StepConfigForm
-                    stepType={selectedStepType}
-                    dataSummary={dataSummary}
-                    isApplying={isApplying}
-                    hasSplit={hasSplit}
-                    onApply={handleApplyStep}
-                  />
-                )}
-              </CardContent>
-            </Card>
+                    {selectedStepType && dataSummary && (
+                      <StepConfigForm
+                        stepType={selectedStepType}
+                        dataSummary={dataSummary}
+                        isApplying={isApplying}
+                        hasSplit={hasSplit}
+                        onApply={handleApplyStep}
+                      />
+                    )}
+                  </CardContent>
+                </Card>
+              </CollapsibleContent>
+            </Collapsible>
 
             <GlossaryTermsCard terms={GLOSSARY_TERMS} />
             <LernbereichLink />

@@ -2,10 +2,9 @@
 import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@/components/ui/select';
-import { BarChart3, Eye, GitCompare, Code } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { BarChart3, Eye, GitCompare, Code, ChevronDown, ChevronUp } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { GlossaryTermsCard } from '../shared/GlossaryTermsCard';
 import { LernbereichLink } from '../shared/LernbereichLink';
 import { ClassificationMetrics, RegressionMetrics, ClusteringMetrics } from './evaluation/MetricsPanel';
@@ -13,7 +12,46 @@ import { ConfusionMatrixViz } from './evaluation/ConfusionMatrixViz';
 import { FeatureImportanceViz } from './evaluation/FeatureImportanceViz';
 import { ClusteringViz } from './evaluation/ClusteringViz';
 import { ModelComparisonTable } from './evaluation/ModelComparisonTable';
-import type { WorkspaceProject } from '@/engine/types';
+import type { WorkspaceProject, TrainedModel } from '@/engine/types';
+
+function formatMainMetric(model: TrainedModel, projectType: string): string {
+  if (projectType === 'klassifikation') {
+    return `${((model.metrics.accuracy ?? 0) * 100).toFixed(1)}%`;
+  }
+  if (projectType === 'regression') {
+    return `R² ${(model.metrics.r2 ?? 0).toFixed(3)}`;
+  }
+  // clustering
+  return model.metrics.silhouetteScore != null
+    ? `Sil. ${model.metrics.silhouetteScore.toFixed(3)}`
+    : '–';
+}
+
+function CollapsibleVisualization({ title, icon, children }: {
+  title: string;
+  icon: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(true);
+  return (
+    <Collapsible open={open} onOpenChange={setOpen}>
+      <Card>
+        <CollapsibleTrigger asChild>
+          <CardHeader className="cursor-pointer select-none hover:bg-muted/50 transition-colors">
+            <CardTitle className="text-base flex items-center gap-2">
+              {icon}
+              <span className="flex-1">{title}</span>
+              {open ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+            </CardTitle>
+          </CardHeader>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <CardContent>{children}</CardContent>
+        </CollapsibleContent>
+      </Card>
+    </Collapsible>
+  );
+}
 
 const GLOSSARY_TERMS = [
   { term: 'Confusion Matrix', termId: 'confusion-matrix' },
@@ -71,24 +109,24 @@ export function Evaluation({ project, onUpdateProject }: EvaluationProps) {
 
   return (
     <div className="space-y-6">
-      {/* Model Selector */}
+      {/* Model Selector Chips */}
       {trainedModels.length > 1 && (
-        <Card>
-          <CardContent className="pt-6">
-            <div className="max-w-sm">
-              <Select value={selectedModelId} onValueChange={setSelectedModelId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Modell auswählen..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {trainedModels.map(m => (
-                    <SelectItem key={m.id} value={m.id}>{m.algorithmLabel}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="flex flex-wrap gap-2">
+          {trainedModels.map(m => (
+            <button
+              key={m.id}
+              onClick={() => setSelectedModelId(m.id)}
+              className={cn(
+                'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors',
+                m.id === selectedModelId
+                  ? 'border-orange-500 bg-orange-50 text-orange-800'
+                  : 'border-gray-200 bg-white text-gray-600 hover:border-orange-300',
+              )}
+            >
+              {m.algorithmLabel} · {formatMainMetric(m, project.type)}
+            </button>
+          ))}
+        </div>
       )}
 
       {/* Tabs */}
@@ -133,13 +171,32 @@ export function Evaluation({ project, onUpdateProject }: EvaluationProps) {
         <TabsContent value="visualisierungen">
           {selectedModel ? (
             <div className="space-y-4">
-              {isClassification && selectedModel.metrics.confusionMatrix && (
-                <ConfusionMatrixViz model={selectedModel} />
-              )}
+              {/* Feature Importance first */}
               {selectedModel.featureImportances && selectedModel.featureImportances.length > 0 && (
-                <FeatureImportanceViz model={selectedModel} />
+                <CollapsibleVisualization
+                  title="Feature Importance"
+                  icon={<BarChart3 className="h-4 w-4 text-primary" />}
+                >
+                  <FeatureImportanceViz model={selectedModel} embedded />
+                </CollapsibleVisualization>
               )}
-              {isClustering && <ClusteringViz model={selectedModel} />}
+              {/* Confusion Matrix second */}
+              {isClassification && selectedModel.metrics.confusionMatrix && (
+                <CollapsibleVisualization
+                  title="Confusion Matrix"
+                  icon={<Eye className="h-4 w-4 text-primary" />}
+                >
+                  <ConfusionMatrixViz model={selectedModel} embedded />
+                </CollapsibleVisualization>
+              )}
+              {isClustering && (
+                <CollapsibleVisualization
+                  title="Cluster-Verteilung"
+                  icon={<BarChart3 className="h-4 w-4 text-primary" />}
+                >
+                  <ClusteringViz model={selectedModel} embedded />
+                </CollapsibleVisualization>
+              )}
               {!isClassification && !selectedModel.featureImportances?.length && !isClustering && (
                 <Card>
                   <CardContent className="py-8 text-center text-muted-foreground">

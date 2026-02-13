@@ -1,4 +1,9 @@
 // Deployment Phase – Model Testing, Code Export, Project Summary
+// TODO: PreparedDataSummary in engine/types.ts erweitern für bessere Deployment-Inputs:
+// - categoricalValues?: Record<string, string[]>
+// - columnStats?: Record<string, { min: number; max: number; mean: number; median: number }>
+// - missingValueCounts?: Record<string, number>
+// Diese Werte müssten in DataPreparator.ts beim Pipeline-Init befüllt werden.
 import { useState, useMemo, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -15,6 +20,7 @@ import {
   CheckCircle2, ClipboardList, ChevronDown, ChevronUp,
   Lightbulb, Workflow, AlertTriangle, ArrowRight,
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { GlossaryTermsCard } from '../shared/GlossaryTermsCard';
 import { LernbereichLink } from '../shared/LernbereichLink';
 import { ModelDeployer } from '@/engine/deployment/ModelDeployer';
@@ -25,6 +31,18 @@ import type { WorkspaceProject, TrainedModel } from '@/engine/types';
 interface DeploymentProps {
   project: WorkspaceProject;
   onUpdateProject: (updates: Partial<WorkspaceProject>) => void;
+}
+
+function formatDeploymentMetric(model: TrainedModel, projectType: string): string {
+  if (projectType === 'klassifikation') {
+    return `${((model.metrics.accuracy ?? 0) * 100).toFixed(1)}%`;
+  }
+  if (projectType === 'regression') {
+    return `R² ${(model.metrics.r2 ?? 0).toFixed(3)}`;
+  }
+  return model.metrics.silhouetteScore != null
+    ? `Sil. ${model.metrics.silhouetteScore.toFixed(3)}`
+    : '–';
 }
 
 export function Deployment({ project, onUpdateProject }: DeploymentProps) {
@@ -59,6 +77,26 @@ export function Deployment({ project, onUpdateProject }: DeploymentProps) {
 
   return (
     <div className="space-y-6">
+      {/* Model Selector Chips */}
+      {trainedModels.length > 1 && (
+        <div className="flex flex-wrap gap-2">
+          {trainedModels.map(m => (
+            <button
+              key={m.id}
+              onClick={() => onUpdateProject({ selectedModelId: m.id })}
+              className={cn(
+                'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors',
+                m.id === (project.selectedModelId ?? trainedModels[0]?.id)
+                  ? 'border-orange-500 bg-orange-50 text-orange-800'
+                  : 'border-gray-200 bg-white text-gray-600 hover:border-orange-300',
+              )}
+            >
+              {m.algorithmLabel} · {formatDeploymentMetric(m, project.type)}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Model Summary */}
       <ModelSummaryCard model={selectedModel} projectType={project.type} />
 
@@ -316,21 +354,29 @@ function PredictionPanel({ project, model, isClustering }: {
             </p>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {featureColumns.map(col => (
-                <div key={col}>
-                  <Label className="text-sm">{col}</Label>
-                  <Input
-                    className="mt-1"
-                    placeholder={PLACEHOLDER_HINTS[col] ?? 'Wert eingeben'}
-                    value={inputValues[col] ?? ''}
-                    onChange={(e) => setInputValues(prev => ({
-                      ...prev,
-                      [col]: e.target.value,
-                    }))}
-                    disabled={predicting}
-                  />
-                </div>
-              ))}
+              {featureColumns.map(col => {
+                const isCategorical = project.preparedDataSummary?.categoricalColumns?.includes(col);
+                return (
+                  <div key={col}>
+                    <div className="flex items-center gap-1.5">
+                      <Label className="text-sm">{col}</Label>
+                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                        {isCategorical ? 'kat' : 'num'}
+                      </Badge>
+                    </div>
+                    <Input
+                      className="mt-1"
+                      placeholder={PLACEHOLDER_HINTS[col] ?? 'Wert eingeben'}
+                      value={inputValues[col] ?? ''}
+                      onChange={(e) => setInputValues(prev => ({
+                        ...prev,
+                        [col]: e.target.value,
+                      }))}
+                      disabled={predicting}
+                    />
+                  </div>
+                );
+              })}
             </div>
           )}
 

@@ -24,8 +24,8 @@ export const DEFAULT_PACKAGES = ['numpy', 'pandas', 'scikit-learn'];
 /** Timeout for initialization (5 minutes – Pyodide is large) */
 const INIT_TIMEOUT_MS = 5 * 60 * 1000;
 
-/** Timeout for individual requests (2 minutes) */
-const REQUEST_TIMEOUT_MS = 2 * 60 * 1000;
+/** Timeout for individual requests (5 minutes – large datasets may take longer) */
+const REQUEST_TIMEOUT_MS = 5 * 60 * 1000;
 
 /** Result from executing Python code */
 export interface PyodideExecutionResult {
