@@ -170,8 +170,10 @@ export interface PreparedDataSummary {
 export type AlgorithmType =
   | 'logistic-regression' | 'decision-tree-classifier'
   | 'random-forest-classifier' | 'knn-classifier'
+  | 'gradient-boosting-classifier' | 'naive-bayes' | 'svm-classifier'
   | 'linear-regression' | 'ridge-regression'
   | 'decision-tree-regressor' | 'random-forest-regressor'
+  | 'gradient-boosting-regressor' | 'lasso-regression'
   | 'kmeans' | 'dbscan';
 
 export interface AlgorithmConfig {

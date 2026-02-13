@@ -76,18 +76,23 @@ describe('ModelTrainer', () => {
   describe('getAvailableAlgorithms', () => {
     it('returns classification algorithms for klassifikation', () => {
       const algos = ModelTrainer.getAvailableAlgorithms('klassifikation');
-      expect(algos.length).toBe(4);
+      expect(algos.length).toBe(7);
       expect(algos.every(a => a.category === 'classification')).toBe(true);
       expect(algos.map(a => a.type)).toContain('logistic-regression');
       expect(algos.map(a => a.type)).toContain('random-forest-classifier');
+      expect(algos.map(a => a.type)).toContain('gradient-boosting-classifier');
+      expect(algos.map(a => a.type)).toContain('naive-bayes');
+      expect(algos.map(a => a.type)).toContain('svm-classifier');
     });
 
     it('returns regression algorithms for regression', () => {
       const algos = ModelTrainer.getAvailableAlgorithms('regression');
-      expect(algos.length).toBe(4);
+      expect(algos.length).toBe(6);
       expect(algos.every(a => a.category === 'regression')).toBe(true);
       expect(algos.map(a => a.type)).toContain('linear-regression');
       expect(algos.map(a => a.type)).toContain('ridge-regression');
+      expect(algos.map(a => a.type)).toContain('gradient-boosting-regressor');
+      expect(algos.map(a => a.type)).toContain('lasso-regression');
     });
 
     it('returns clustering algorithms for clustering', () => {
@@ -171,6 +176,45 @@ describe('ModelTrainer', () => {
       const params = ModelTrainer.getDefaultHyperparameters('unknown' as AlgorithmType);
       expect(params).toHaveLength(0);
     });
+
+    it('returns hyperparameters for gradient boosting classifier', () => {
+      const params = ModelTrainer.getDefaultHyperparameters('gradient-boosting-classifier');
+      expect(params.length).toBe(3);
+      expect(params.map(p => p.name)).toContain('max_iter');
+      expect(params.map(p => p.name)).toContain('max_depth');
+      expect(params.map(p => p.name)).toContain('learning_rate');
+    });
+
+    it('returns empty array for naive bayes (no hyperparameters)', () => {
+      const params = ModelTrainer.getDefaultHyperparameters('naive-bayes');
+      expect(params).toHaveLength(0);
+    });
+
+    it('returns hyperparameters for svm classifier', () => {
+      const params = ModelTrainer.getDefaultHyperparameters('svm-classifier');
+      expect(params.length).toBe(2);
+      expect(params.map(p => p.name)).toContain('C');
+      expect(params.map(p => p.name)).toContain('kernel');
+      const kernelParam = params.find(p => p.name === 'kernel');
+      expect(kernelParam!.type).toBe('select');
+      expect(kernelParam!.options).toHaveLength(3);
+      expect(kernelParam!.default).toBe('rbf');
+    });
+
+    it('returns hyperparameters for gradient boosting regressor', () => {
+      const params = ModelTrainer.getDefaultHyperparameters('gradient-boosting-regressor');
+      expect(params.length).toBe(3);
+      expect(params.map(p => p.name)).toContain('max_iter');
+      expect(params.map(p => p.name)).toContain('max_depth');
+      expect(params.map(p => p.name)).toContain('learning_rate');
+    });
+
+    it('returns hyperparameters for lasso regression', () => {
+      const params = ModelTrainer.getDefaultHyperparameters('lasso-regression');
+      expect(params.length).toBe(1);
+      expect(params[0].name).toBe('alpha');
+      expect(params[0].default).toBe(1.0);
+    });
   });
 
   // ===========================================
@@ -220,6 +264,40 @@ describe('ModelTrainer', () => {
       expect(code).toContain('KNeighborsClassifier');
       expect(code).toContain('n_neighbors=5');
       expect(code).toContain('_feat_imp = None');
+    });
+
+    it('generates gradient boosting classifier code', () => {
+      const code = ModelTrainer.buildTrainingCode(
+        { type: 'gradient-boosting-classifier', hyperparameters: { max_iter: 100, max_depth: 5, learning_rate: 0.1 } },
+        'Klasse', 'klassifikation',
+      );
+      expect(code).toContain('HistGradientBoostingClassifier');
+      expect(code).toContain('max_iter=100');
+      expect(code).toContain('roc_auc_score');
+      expect(code).toContain('permutation_importance');
+    });
+
+    it('generates naive bayes code', () => {
+      const code = ModelTrainer.buildTrainingCode(
+        { type: 'naive-bayes', hyperparameters: {} },
+        'Klasse', 'klassifikation',
+      );
+      expect(code).toContain('GaussianNB');
+      expect(code).toContain('_feat_imp = None');
+      expect(code).toContain('roc_auc_score');
+    });
+
+    it('generates SVM classifier code with subsampling guard', () => {
+      const code = ModelTrainer.buildTrainingCode(
+        { type: 'svm-classifier', hyperparameters: { C: 1.0, kernel: 'rbf' } },
+        'Klasse', 'klassifikation',
+      );
+      expect(code).toContain('SVC');
+      expect(code).toContain('C=1');
+      expect(code).toContain('kernel="rbf"');
+      expect(code).toContain('if len(X_train) > 5000');
+      expect(code).toContain('_feat_imp = None');
+      expect(code).not.toContain('predict_proba');
     });
 
     it('includes train-test split preparation', () => {
@@ -290,6 +368,26 @@ describe('ModelTrainer', () => {
       expect(code).toContain('RandomForestRegressor');
       expect(code).toContain('n_estimators=50');
       expect(code).toContain('max_depth=15');
+    });
+
+    it('generates gradient boosting regressor code', () => {
+      const code = ModelTrainer.buildTrainingCode(
+        { type: 'gradient-boosting-regressor', hyperparameters: { max_iter: 100, learning_rate: 0.1 } },
+        'Preis', 'regression',
+      );
+      expect(code).toContain('HistGradientBoostingRegressor');
+      expect(code).toContain('r2_score');
+      expect(code).toContain('permutation_importance');
+    });
+
+    it('generates lasso regression code', () => {
+      const code = ModelTrainer.buildTrainingCode(
+        { type: 'lasso-regression', hyperparameters: { alpha: 1.0 } },
+        'Preis', 'regression',
+      );
+      expect(code).toContain('Lasso');
+      expect(code).toContain('alpha=1');
+      expect(code).toContain('_model.coef_');
     });
 
     it('includes regression metrics', () => {
@@ -816,6 +914,14 @@ describe('ModelTrainer', () => {
       expect(ModelTrainer.getAlgorithmLabel('random-forest-classifier')).toBe('Random Forest (Klassifikation)');
       expect(ModelTrainer.getAlgorithmLabel('kmeans')).toBe('K-Means');
     });
+
+    it('returns correct labels for new algorithms', () => {
+      expect(ModelTrainer.getAlgorithmLabel('gradient-boosting-classifier')).toBe('Gradient Boosting (Klassifikation)');
+      expect(ModelTrainer.getAlgorithmLabel('naive-bayes')).toBe('Naive Bayes');
+      expect(ModelTrainer.getAlgorithmLabel('svm-classifier')).toBe('SVM (Support Vector Machine)');
+      expect(ModelTrainer.getAlgorithmLabel('gradient-boosting-regressor')).toBe('Gradient Boosting (Regression)');
+      expect(ModelTrainer.getAlgorithmLabel('lasso-regression')).toBe('Lasso Regression');
+    });
   });
 
   // ===========================================
@@ -857,6 +963,19 @@ describe('ModelTrainer', () => {
       expect(ModelTrainer.getSmartDefaults('logistic-regression', 20000)).toBeNull();
       expect(ModelTrainer.getSmartDefaults('linear-regression', 20000)).toBeNull();
       expect(ModelTrainer.getSmartDefaults('kmeans', 20000)).toBeNull();
+      expect(ModelTrainer.getSmartDefaults('naive-bayes', 20000)).toBeNull();
+      expect(ModelTrainer.getSmartDefaults('svm-classifier', 20000)).toBeNull();
+      expect(ModelTrainer.getSmartDefaults('lasso-regression', 20000)).toBeNull();
+    });
+
+    it('returns adjusted params for gradient boosting on large datasets (>20k)', () => {
+      const defaults = ModelTrainer.getSmartDefaults('gradient-boosting-classifier', 25000);
+      expect(defaults).toEqual({ max_iter: 50, max_depth: 3 });
+    });
+
+    it('returns moderate adjusted params for gradient boosting on medium-large datasets (10k-20k)', () => {
+      const defaults = ModelTrainer.getSmartDefaults('gradient-boosting-regressor', 15000);
+      expect(defaults).toEqual({ max_iter: 80, max_depth: 4 });
     });
   });
 

@@ -62,6 +62,9 @@ const CLASSIFICATION_ALGORITHMS: AlgorithmInfo[] = [
   { type: 'decision-tree-classifier', label: 'Decision Tree', description: 'Baumbasierter Algorithmus, leicht interpretierbar', category: 'classification' },
   { type: 'random-forest-classifier', label: 'Random Forest', description: 'Ensemble aus vielen Decision Trees, robust und genau', category: 'classification' },
   { type: 'knn-classifier', label: 'K-Nearest Neighbors', description: 'Klassifiziert anhand der k nächsten Nachbarn', category: 'classification' },
+  { type: 'gradient-boosting-classifier', label: 'Gradient Boosting', description: 'Lernt schrittweise aus Fehlern – oft das beste Modell in der Praxis', category: 'classification' },
+  { type: 'naive-bayes', label: 'Naive Bayes', description: 'Schneller probabilistischer Klassifikator basierend auf Bayes-Theorem', category: 'classification' },
+  { type: 'svm-classifier', label: 'SVM', description: 'Findet die optimale Trennlinie zwischen Klassen', category: 'classification' },
 ];
 
 const REGRESSION_ALGORITHMS: AlgorithmInfo[] = [
@@ -69,6 +72,8 @@ const REGRESSION_ALGORITHMS: AlgorithmInfo[] = [
   { type: 'ridge-regression', label: 'Ridge Regression', description: 'Lineare Regression mit L2-Regularisierung', category: 'regression' },
   { type: 'decision-tree-regressor', label: 'Decision Tree', description: 'Baumbasierter Algorithmus für Regression', category: 'regression' },
   { type: 'random-forest-regressor', label: 'Random Forest', description: 'Ensemble aus Decision Trees für Regression', category: 'regression' },
+  { type: 'gradient-boosting-regressor', label: 'Gradient Boosting', description: 'Lernt schrittweise aus Fehlern – oft das beste Regressionsmodell', category: 'regression' },
+  { type: 'lasso-regression', label: 'Lasso Regression', description: 'L1-Regularisierung – setzt unwichtige Features auf exakt 0', category: 'regression' },
 ];
 
 const CLUSTERING_ALGORITHMS: AlgorithmInfo[] = [
@@ -111,6 +116,28 @@ const HYPERPARAMETERS: Record<AlgorithmType, HyperparameterDef[]> = {
     { name: 'eps', label: 'Epsilon (Radius)', type: 'number', min: 0.1, max: 5, step: 0.1, default: 0.5 },
     { name: 'min_samples', label: 'Min Samples', type: 'number', min: 2, max: 20, step: 1, default: 5 },
   ],
+  'gradient-boosting-classifier': [
+    { name: 'max_iter', label: 'Max Iterationen', type: 'number', min: 50, max: 300, step: 10, default: 100 },
+    { name: 'max_depth', label: 'Max Tiefe', type: 'number', min: 1, max: 10, step: 1, default: 5 },
+    { name: 'learning_rate', label: 'Lernrate', type: 'number', min: 0.01, max: 1.0, step: 0.01, default: 0.1 },
+  ],
+  'naive-bayes': [],
+  'svm-classifier': [
+    { name: 'C', label: 'Regularisierung (C)', type: 'number', min: 0.01, max: 100, step: 0.1, default: 1.0 },
+    { name: 'kernel', label: 'Kernel', type: 'select', default: 'rbf', options: [
+      { value: 'linear', label: 'Linear' },
+      { value: 'rbf', label: 'RBF (Radial Basis)' },
+      { value: 'poly', label: 'Polynomial' },
+    ] },
+  ],
+  'gradient-boosting-regressor': [
+    { name: 'max_iter', label: 'Max Iterationen', type: 'number', min: 50, max: 300, step: 10, default: 100 },
+    { name: 'max_depth', label: 'Max Tiefe', type: 'number', min: 1, max: 10, step: 1, default: 5 },
+    { name: 'learning_rate', label: 'Lernrate', type: 'number', min: 0.01, max: 1.0, step: 0.01, default: 0.1 },
+  ],
+  'lasso-regression': [
+    { name: 'alpha', label: 'Alpha (Regularisierung)', type: 'number', min: 0.001, max: 10, step: 0.01, default: 1.0 },
+  ],
 };
 
 /** Human-readable labels for algorithm types */
@@ -125,6 +152,11 @@ const ALGORITHM_LABELS: Record<AlgorithmType, string> = {
   'random-forest-regressor': 'Random Forest (Regression)',
   'kmeans': 'K-Means',
   'dbscan': 'DBSCAN',
+  'gradient-boosting-classifier': 'Gradient Boosting (Klassifikation)',
+  'naive-bayes': 'Naive Bayes',
+  'svm-classifier': 'SVM (Support Vector Machine)',
+  'gradient-boosting-regressor': 'Gradient Boosting (Regression)',
+  'lasso-regression': 'Lasso Regression',
 };
 
 /** sklearn class import paths */
@@ -139,6 +171,11 @@ const SKLEARN_IMPORTS: Record<AlgorithmType, string> = {
   'random-forest-regressor': 'from sklearn.ensemble import RandomForestRegressor',
   'kmeans': 'from sklearn.cluster import KMeans',
   'dbscan': 'from sklearn.cluster import DBSCAN',
+  'gradient-boosting-classifier': 'from sklearn.ensemble import HistGradientBoostingClassifier',
+  'naive-bayes': 'from sklearn.naive_bayes import GaussianNB',
+  'svm-classifier': 'from sklearn.svm import SVC',
+  'gradient-boosting-regressor': 'from sklearn.ensemble import HistGradientBoostingRegressor',
+  'lasso-regression': 'from sklearn.linear_model import Lasso',
 };
 
 /** sklearn class names */
@@ -153,6 +190,11 @@ const SKLEARN_CLASSES: Record<AlgorithmType, string> = {
   'random-forest-regressor': 'RandomForestRegressor',
   'kmeans': 'KMeans',
   'dbscan': 'DBSCAN',
+  'gradient-boosting-classifier': 'HistGradientBoostingClassifier',
+  'naive-bayes': 'GaussianNB',
+  'svm-classifier': 'SVC',
+  'gradient-boosting-regressor': 'HistGradientBoostingRegressor',
+  'lasso-regression': 'Lasso',
 };
 
 // ============================================================
@@ -300,6 +342,11 @@ export class ModelTrainer {
         return { max_depth: 8 };
       case 'knn-classifier':
         return { n_neighbors: 7 };
+      case 'gradient-boosting-classifier':
+      case 'gradient-boosting-regressor':
+        return rowCount > 20_000
+          ? { max_iter: 50, max_depth: 3 }
+          : { max_iter: 80, max_depth: 4 };
       default:
         return null;
     }
@@ -390,7 +437,12 @@ X_test = X_test[_mask_test]
 y_test = y_test[_mask_test]
 _rows_dropped = _pre_drop - len(X_train)
 
-_model = ${className}(${hyperparamStr})
+${config.type === 'svm-classifier' ? `# SVM ist O(n²)–O(n³) – bei großen Daten automatisch subsamplen
+if len(X_train) > 5000:
+    _svm_idx = _np.random.RandomState(42).choice(len(X_train), 5000, replace=False)
+    X_train = X_train.iloc[_svm_idx]
+    y_train = y_train.iloc[_svm_idx]
+` : ''}_model = ${className}(${hyperparamStr})
 _model.fit(X_train, y_train)
 y_pred = _model.predict(X_test)
 
@@ -485,7 +537,7 @@ _result
 
   private static buildClassificationMetricsCode(algorithmType: AlgorithmType): string {
     // Check if the algorithm supports predict_proba for ROC AUC
-    const supportsProba = ['logistic-regression', 'random-forest-classifier', 'knn-classifier'].includes(algorithmType);
+    const supportsProba = ['logistic-regression', 'random-forest-classifier', 'knn-classifier', 'gradient-boosting-classifier', 'naive-bayes'].includes(algorithmType);
 
     const rocAucPart = supportsProba
       ? `
@@ -532,7 +584,11 @@ _metrics = {
     ].includes(algorithmType);
 
     const hasCoef = [
-      'logistic-regression', 'linear-regression', 'ridge-regression',
+      'logistic-regression', 'linear-regression', 'ridge-regression', 'lasso-regression',
+    ].includes(algorithmType);
+
+    const needsPermutationImportance = [
+      'gradient-boosting-classifier', 'gradient-boosting-regressor',
     ].includes(algorithmType);
 
     if (hasFeatureImportances) {
@@ -551,7 +607,21 @@ _feat_imp = [{"feature": _feat_names[i], "importance": float(_coefs[i])} for i i
 _feat_imp.sort(key=lambda x: x["importance"], reverse=True)`.trim();
     }
 
-    // KNN and others don't have feature importance
+    if (needsPermutationImportance) {
+      return `
+try:
+    from sklearn.inspection import permutation_importance as _perm_imp
+    _X_sample = X_test[:1000] if len(X_test) > 1000 else X_test
+    _y_sample = y_test[:1000] if len(y_test) > 1000 else y_test
+    _pi = _perm_imp(_model, _X_sample, _y_sample, n_repeats=5, random_state=42)
+    _feat_names = list(X_train.columns)
+    _feat_imp = [{"feature": _feat_names[i], "importance": float(_pi.importances_mean[i])} for i in range(len(_feat_names))]
+    _feat_imp.sort(key=lambda x: x["importance"], reverse=True)
+except Exception:
+    _feat_imp = None`.trim();
+    }
+
+    // KNN, SVM, Naive Bayes don't have feature importance
     return '_feat_imp = None';
   }
 
